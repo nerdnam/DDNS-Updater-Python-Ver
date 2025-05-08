@@ -1,0 +1,751 @@
+; ddns_config.ini
+; 동적 DNS 업데이터 설정 파일
+
+; --- 전역 설정 섹션 ---
+[ddns]
+; 로그 파일 이름 등에 사용될 기본 별명 (로그 폴더 이름으로 사용됨)
+nick = 내_DDNS_설정
+; 기본 타임존 (레코드별 설정이 없을 경우 사용됨). IANA 타임존 데이터베이스 이름을 사용합니다.
+; 예: Asia/Seoul, America/New_York, Europe/London, Etc/UTC
+; 전체 목록: https://ko.wikipedia.org/wiki/TZ_데이터베이스의_시간대_목록
+default_timezone = Asia/Seoul
+; 기본 HTTP 타임아웃 (공인 IP 조회 서비스 및 DDNS API 호출 시). 레코드별 설정이 없을 경우 사용됨.
+; 형식: 숫자 + 단위 (s: 초, m: 분, h: 시). 예: 10s, 1m30s
+default_http_timeout = 20s
+
+
+; --- ★★★ 디버그 모드 설정 추가 ★★★ ---
+; true 또는 false 로 설정. 애플리케이션 전체의 로깅 레벨 및 Flask 디버그 모드에 영향.
+debug_mode = false
+; ------------------------------------
+
+; --- 각 DDNS 레코드 설정 ---
+; 각 [섹션이름]은 고유해야 하며, 웹 UI 및 로그에서 레코드를 식별하는 데 사용됩니다.
+
+; -----------------------------------------------------------------------------
+; 프로바이더: Cloudflare (클라우드플레어)
+; API 문서: https://developers.cloudflare.com/api/
+; 인증 방식: API 토큰 (권장) 또는 글로벌 API 키 + 이메일
+; -----------------------------------------------------------------------------
+[cloudflare_메인서버_ipv4]
+domain = example.com                 ; Cloudflare에서 관리하는 기본 도메인
+owner = myhost                       ; 서브도메인 부분 (예: www, sub, 또는 루트 도메인의 경우 @)
+provider = cloudflare                ; 프로바이더 이름 (내부 식별자와 일치해야 함)
+ip_version = ipv4                    ; 'ipv4' (A 레코드용) - 현재는 ipv4만 지원
+; --- 인증 정보 (아래 두 가지 방법 중 하나 선택) ---
+; 방법 1: API 토큰 (Cloudflare 권장 방식)
+;   - 특정 Zone에 대해 "Zone:DNS:Edit" 권한을 가진 토큰을 생성하세요.
+cloudflare_api_token = 여기에_클라우드플레어_API_토큰을_입력하세요
+; 방법 2: 글로벌 API 키 및 이메일 (보안 수준 낮음, 광범위한 접근 권한 부여)
+; cloudflare_api_key = 여기에_클라우드플레어_글로벌_API_키를_입력하세요
+; cloudflare_email = 클라우드플레어_계정_이메일@example.com
+cloudflare_zone_id = 여기에_클라우드플레어_Zone_ID를_입력하세요 ; 도메인의 Zone ID (Cloudflare 대시보드에서 확인)
+proxied = false                      ; true 또는 false - Cloudflare 프록시(주황색 구름) 사용 여부
+; --- 레코드별 시간 설정 ---
+update_period = 15m                  ; 15분마다 IP 변경 확인
+cooldown_period = 1h                 ; 성공적인 업데이트 후 최소 1시간 대기
+http_timeout = 25s                   ; 이 레코드의 API 호출 타임아웃
+timezone = America/New_York          ; 이 레코드의 UI 표시 시간 기준 타임존
+
+; -----------------------------------------------------------------------------
+; 프로바이더: HE.net (Hurricane Electric)
+; API 문서: https://dns.he.net/docs.html (Dynamic DNS API 섹션 참조)
+; 인증 방식: 특정 호스트네임에 대한 DDNS 키 (비밀번호 역할)
+; -----------------------------------------------------------------------------
+[he_터널서버_ipv4]
+domain = yourdomain.he.net           ; HE.net DNS에서 관리하는 도메인
+owner = @                            ; HE.net DDNS는 보통 @ 사용 (키가 FQDN에 연결됨)
+provider = he                        ; 프로바이더 이름
+ip_version = ipv4                    ; 현재 이 클라이언트는 IPv4만 지원
+he_ddns_key = 여기에_HE.net_DDNS_키를_입력하세요 ; HE.net에서 발급받은 특정 호스트네임용 DDNS 키
+update_period = 30m
+cooldown_period = 6h
+
+; -----------------------------------------------------------------------------
+; 프로바이더: GoDaddy (고대디)
+; API 문서: https://developer.godaddy.com/doc/endpoint/domains
+; 인증 방식: API 키 및 시크릿
+; -----------------------------------------------------------------------------
+[godaddy_웹서버_ipv4]
+domain = yourdomain.com              ; GoDaddy에서 관리하는 기본 도메인
+owner = sub                          ; 서브도메인 부분 (예: www, sub, 또는 루트의 경우 @)
+provider = godaddy
+ip_version = ipv4
+godaddy_api_key = 여기에_GoDaddy_API_키를_입력하세요
+godaddy_api_secret = 여기에_GoDaddy_API_시크릿을_입력하세요
+update_period = 5m
+cooldown_period = 30m
+http_timeout = 30s
+
+; -----------------------------------------------------------------------------
+; 프로바이더: Aliyun (알리바바 클라우드 DNS)
+; API 문서: (Aliyun DNS API 문서를 검색하세요)
+; 인증 방식: AccessKey ID 및 AccessKey Secret
+; -----------------------------------------------------------------------------
+[aliyun_사무실_ipv4]
+domain = yourdomain.com              ; Aliyun에서 관리하는 기본 도메인
+owner = www                          ; 서브도메인 부분
+provider = aliyun
+ip_version = ipv4
+aliyun_access_key_id = 여기에_Aliyun_AccessKey_ID를_입력하세요
+aliyun_access_key_secret = 여기에_Aliyun_AccessKey_Secret을_입력하세요
+; aliyun_region_id = cn-hangzhou     ; 선택 사항: 기본값은 cn-hangzhou. 다른 리전이 필요할 수 있습니다.
+update_period = 20m
+cooldown_period = 2h
+
+; -----------------------------------------------------------------------------
+; 프로바이더: All-Inkl.com (올인클)
+; API 문서: https://all-inkl.com/ (DynDNS 관련 FAQ 또는 API 섹션 검색)
+; 인증 방식: KAS 사용자 이름 및 KAS 비밀번호
+; -----------------------------------------------------------------------------
+[allinkl_홈서버_ipv4]
+domain = yourdomain.de               ; All-Inkl에서 관리하는 도메인
+owner = dyndns                       ; 서브도메인 부분
+provider = allinkl
+ip_version = ipv4
+allinkl_username = 여기에_All-Inkl_KAS_사용자이름을_입력하세요
+allinkl_password = 여기에_All-Inkl_KAS_비밀번호를_입력하세요
+update_period = 1h
+
+; -----------------------------------------------------------------------------
+; 프로바이더: ChangeIP (체인지아이피)
+; API 문서: (ChangeIP DynDNS API를 검색하세요)
+; 인증 방식: 사용자 이름 및 비밀번호
+; -----------------------------------------------------------------------------
+[changeip_테스트_ipv4]
+domain = yourdomain.com              ; 도메인 (종종 ChangeIP의 무료 서브도메인)
+owner = @                            ; 또는 루트가 아닌 경우 특정 호스트 부분
+provider = changeip
+ip_version = ipv4
+changeip_username = 여기에_ChangeIP_사용자이름을_입력하세요
+changeip_password = 여기에_ChangeIP_비밀번호를_입력하세요
+update_period = 25m
+
+; -----------------------------------------------------------------------------
+; 프로바이더: Custom URL (사용자 정의 URL)
+; 명시적으로 지원되지 않는 다양한 DynDNS 호환 서비스에 사용합니다.
+; 전체 업데이트 URL과 응답 본문에서 성공 여부를 확인할 정규식을 직접 정의합니다.
+; -----------------------------------------------------------------------------
+[custom_내서비스_ipv4]
+domain = mycustomhost.customprovider.com ; 업데이트할 FQDN
+owner = @                                ; domain이 FQDN이면 보통 @, 아니면 서브도메인 부분
+provider = custom
+ip_version = ipv4
+; 호출할 URL. 플레이스홀더 사용 가능: {ip}, {domain}, {owner}, {hostname} (FQDN)
+; 예: https://your.custom.dyndns.provider/update?hostname={hostname}&myip={ip}&user=USER&pass=PASS
+; 만약 IP를 다른 파라미터(예: ipaddr={ip})로 전달해야 한다면 custom_ipv4_key=ipaddr 설정
+custom_url = https://내커스텀DDNS제공자/업데이트?host={hostname}&ip={ip}&auth_token=비밀토큰
+; custom_ipv4_key = ip                 ; 선택 사항: IPv4 주소용 쿼리 파라미터 키 (기본 'myip' 또는 URL 경로에 IP 포함 시)
+; custom_ipv6_key = ip6                ; 선택 사항: IPv6 주소용 쿼리 파라미터 키 (URL 경로에 IP 포함 시)
+custom_success_regex = ^(good|nochg)   ; 성공적인 응답 텍스트와 일치하는 정규식 (기본적으로 대소문자 무시 안 함)
+update_period = 10m
+http_timeout = 15s
+
+; -----------------------------------------------------------------------------
+; 프로바이더: DD24 (DomainDiscount24)
+; API 문서: https://www.domaindiscount24.com/faq/en/dynamic-dns
+; 인증 방식: 도메인용 DDNS 비밀번호
+; -----------------------------------------------------------------------------
+[dd24_블로그_ipv4]
+domain = yourdomain.com              ; DD24에서 관리하는 도메인
+owner = dyn                          ; 서브도메인 부분
+provider = dd24
+ip_version = ipv4
+dd24_password = 여기에_DD24_DDNS_비밀번호를_입력하세요
+update_period = 45m
+
+; -----------------------------------------------------------------------------
+; 프로바이더: DDNSS.de (데데엔에스)
+; API 문서: https://ddnss.de/ (FAQ 또는 API 섹션 확인)
+; 인증 방식: 사용자 이름 및 비밀번호, 또는 토큰
+; -----------------------------------------------------------------------------
+[ddnss_개인사이트_ipv4]
+domain = yourdomain.ddnss.de         ; DDNSS.de 도메인
+owner = @                            ; 보통 @ (domain이 FQDN이므로)
+provider = ddnss
+ip_version = ipv4
+ddnss_username = 여기에_DDNSS_사용자이름을_입력하세요
+ddnss_password = 여기에_DDNSS_비밀번호를_입력하세요
+; ddnss_token = 여기에_DDNSS_토큰을_입력하세요       ; 선택 사항: 토큰 인증 시 사용자이름/비밀번호 무시됨.
+; ddnss_dual_stack = false             ; 선택 사항: DDNSS.de 호스트가 듀얼스택이고 IPv6에 'ip6' 파라미터 사용 시 true로 설정.
+update_period = 1h
+
+; -----------------------------------------------------------------------------
+; 프로바이더: deSEC.io (데섹)
+; API 문서: https://desec.io/#!/en/docs/dynDNS
+; 인증 방식: 도메인 이름 (사용자 이름 역할) 및 토큰 (비밀번호 역할) - HTTP Basic Auth
+; -----------------------------------------------------------------------------
+[desec_보안서버_ipv4]
+domain = yourdomain.dedyn.io         ; deSEC 도메인
+owner = @                            ; 보통 @ (deSEC DynDNS는 domain이 FQDN)
+provider = desec
+ip_version = ipv4
+desec_token = 여기에_deSEC_토큰을_입력하세요       ; deSEC DynDNS 토큰
+update_period = 5m
+
+; -----------------------------------------------------------------------------
+; 프로바이더: DigitalOcean (디지털오션)
+; API 문서: https://developers.digitalocean.com/documentation/v2/#domain-records
+; 인증 방식: 개인용 액세스 토큰 (Personal Access Token)
+; -----------------------------------------------------------------------------
+[digitalocean_개발서버_ipv4]
+domain = yourdomain.com              ; DigitalOcean에서 관리하는 기본 도메인
+owner = dyn                          ; 서브도메인 부분 (예: www, sub, 또는 루트의 경우 @)
+provider = digitalocean
+ip_version = ipv4
+digitalocean_token = 여기에_DigitalOcean_개인용_액세스_토큰을_입력하세요
+; digitalocean_ttl = 300             ; 선택 사항: 레코드 TTL (기본값은 프로바이더 설정 따름, 예: 300)
+update_period = 10m
+
+; -----------------------------------------------------------------------------
+; 프로바이더: DNS-O-Matic (디엔에스오매틱 - 여러 서비스 동시 업데이트)
+; API 문서: https://www.dnsomatic.com/docs/api
+; 인증 방식: DNS-O-Matic 사용자 이름 및 비밀번호
+; -----------------------------------------------------------------------------
+[dnsomatic_모든서비스_ipv4]
+domain = yourddnskey.com             ; DNS-O-Matic "호스트명" (종종 all.dnsomatic.com 또는 특정 서비스 키)
+owner = all                          ; 또는 모든 서비스 업데이트가 아니면 특정 호스트. domain이 FQDN이면 @.
+provider = dnsomatic
+ip_version = ipv4
+dnsomatic_username = 여기에_DNS-O-Matic_사용자이름을_입력하세요
+dnsomatic_password = 여기에_DNS-O-Matic_비밀번호를_입력하세요
+update_period = 30m
+
+; -----------------------------------------------------------------------------
+; 프로바이더: Domeneshop (도메네샵 - 노르웨이)
+; API 문서: https://api.domeneshop.no/docs/#tag/ddns
+; 인증 방식: API 토큰 및 시크릿 (HTTP Basic Auth로 사용)
+; -----------------------------------------------------------------------------
+[domeneshop_노르웨이사이트_ipv4]
+domain = yourdomain.no               ; Domeneshop에서 관리하는 도메인
+owner = dyn                          ; 서브도메인 부분
+provider = domeneshop
+ip_version = ipv4
+domeneshop_token = 여기에_Domeneshop_API_토큰을_입력하세요
+domeneshop_secret = 여기에_Domeneshop_API_시크릿을_입력하세요
+update_period = 1h
+
+; -----------------------------------------------------------------------------
+; 프로바이더: DonDominio (돈도미니오 - 스페인)
+; API 문서: (DonDominio DynDNS API를 검색하세요)
+; 인증 방식: 사용자 이름 및 APIKey (또는 하위 호환을 위한 비밀번호)
+; -----------------------------------------------------------------------------
+[dondominio_스페인사이트_ipv4]
+domain = yourdomain.es               ; DonDominio에서 관리하는 도메인
+owner = @                            ; 또는 서브도메인 부분
+provider = dondominio
+ip_version = ipv4
+dondominio_username = 여기에_DonDominio_사용자이름을_입력하세요
+dondominio_api_key = 여기에_DonDominio_APIKey를_입력하세요
+; dondominio_password = 여기에_DonDominio_비밀번호를_입력하세요 ; api_key가 없을 경우 사용
+update_period = 20m
+
+; -----------------------------------------------------------------------------
+; 프로바이더: DreamHost (드림호스트)
+; API 문서: https://help.dreamhost.com/hc/en-us/articles/217555707-DNS-API
+; 인증 방식: API 키 (16자리 영숫자)
+; -----------------------------------------------------------------------------
+[dreamhost_미국서버_ipv4]
+domain = yourdomain.com              ; DreamHost에서 관리하는 도메인
+owner = dyn                          ; 서브도메인 부분 (예: www, sub, 또는 루트의 경우 @)
+provider = dreamhost
+ip_version = ipv4
+dreamhost_api_key = 여기에_16자리_DreamHost_API_키를_입력하세요
+update_period = 15m
+
+; -----------------------------------------------------------------------------
+; 프로바이더: DuckDNS (덕디엔에스)
+; API 문서: https://www.duckdns.org/spec.jsp
+; 인증 방식: 토큰 (UUID 형식)
+; -----------------------------------------------------------------------------
+[duckdns_내집_ipv4]
+domain = yoursubdomain               ; DuckDNS 서브도메인 (예: myhome, .duckdns.org 제외)
+owner = @                            ; DuckDNS는 항상 @ (domain이 전체 서브도메인이므로)
+provider = duckdns
+ip_version = ipv4
+duckdns_token = 여기에_DuckDNS_토큰_UUID를_입력하세요
+update_period = 5m
+
+; -----------------------------------------------------------------------------
+; 프로바이더: Dyn.com (다인 - Oracle Dyn)
+; API 문서: https://help.dyn.com/remote-access-api/perform-update/
+; 인증 방식: 사용자 이름 및 클라이언트 키 (또는 하위 호환을 위한 비밀번호)
+; -----------------------------------------------------------------------------
+[dyn_레거시서비스_ipv4]
+domain = yourhost.dyndns.org         ; Dyn의 FQDN 호스트명
+owner = @                            ; 보통 @ (domain이 FQDN이므로)
+provider = dyn
+ip_version = ipv4
+dyn_username = 여기에_Dyn_사용자이름을_입력하세요
+dyn_client_key = 여기에_Dyn_클라이언트_키를_입력하세요
+; dyn_password = 여기에_Dyn_비밀번호를_입력하세요     ; client_key가 없을 경우 사용
+update_period = 10m
+
+; -----------------------------------------------------------------------------
+; 프로바이더: Dynu (다이누)
+; API 문서: https://www.dynu.com/Support/API
+; 인증 방식: 사용자 이름 및 비밀번호 (또는 비밀번호의 MD5/SHA256 해시)
+; -----------------------------------------------------------------------------
+[dynu_무료계정_ipv4]
+domain = yourdomain.com              ; 도메인 또는 Dynu FQDN
+owner = dyn                          ; 서브도메인 부분, 또는 domain이 FQDN이면 @
+provider = dynu
+ip_version = ipv4
+dynu_username = 여기에_Dynu_사용자이름을_입력하세요
+dynu_password = 여기에_Dynu_비밀번호_또는_해시값을_입력하세요
+; dynu_group = 내_서버_그룹       ; 선택 사항: Dynu의 위치/그룹 기능 사용 시 그룹 이름
+update_period = 5m
+
+; -----------------------------------------------------------------------------
+; 프로바이더: DynV6 (다인브이식스)
+; API 문서: https://dynv6.com/docs/apis
+; 인증 방식: 토큰
+; -----------------------------------------------------------------------------
+[dynv6_ipv6전용존_ipv4] ; 이 레코드는 IPv4 업데이트용 예시
+domain = yourzone.dynv6.net          ; DynV6의 Zone 이름
+owner = @                            ; 보통 @ (domain이 Zone 자체이므로), 또는 Zone이 기본 도메인이면 특정 호스트
+provider = dynv6
+ip_version = ipv4                    ; DynV6는 둘 다 지원, 이 클라이언트는 현재 이 레코드에 IPv4 집중
+dynv6_token = 여기에_DynV6_토큰을_입력하세요
+update_period = 10m
+
+; -----------------------------------------------------------------------------
+; 프로바이더: EasyDNS (이지디엔에스)
+; API 문서: (EasyDNS Dynamic DNS API를 검색하세요)
+; 인증 방식: 사용자 이름 및 토큰
+; -----------------------------------------------------------------------------
+[easydns_캐나다서버_ipv4]
+domain = yourdomain.com              ; EasyDNS에서 관리하는 도메인
+owner = dyn                          ; 서브도메인 부분, 또는 루트의 경우 @, 와일드카드는 *
+provider = easydns
+ip_version = ipv4
+easydns_username = 여기에_EasyDNS_사용자이름을_입력하세요
+easydns_token = 여기에_EasyDNS_토큰을_입력하세요
+update_period = 20m
+
+; -----------------------------------------------------------------------------
+; 프로바이더: FreeDNS (프리디엔에스 - afraid.org)
+; API 문서: https://freedns.afraid.org/dynamic/ ("For Programmers" 섹션 확인)
+; 인증 방식: 업데이트 토큰 (하나 이상의 호스트에 연결됨)
+; -----------------------------------------------------------------------------
+[freedns_취미사이트_ipv4]
+domain = yourhost.afraid.org         ; 업데이트할 FQDN (로깅/식별용)
+owner = @                            ; 보통 @ (토큰이 FQDN에 연결되어 있으므로)
+provider = freedns
+ip_version = ipv4                    ; FreeDNS는 요청 IP 기준 업데이트, 레코드 타입 전송 안 함
+freedns_token = 여기에_FreeDNS_업데이트_토큰을_입력하세요
+update_period = 1h
+
+; -----------------------------------------------------------------------------
+; 프로바이더: Gandi (간디)
+; API 문서: https://api.gandi.net/docs/livedns/
+; 인증 방식: 개인용 액세스 토큰 (권장) 또는 API 키 (사용 중단됨)
+; -----------------------------------------------------------------------------
+[gandi_유럽서버_ipv4]
+domain = yourdomain.com              ; Gandi에서 관리하는 기본 도메인
+owner = dyn                          ; 서브도메인 부분 (예: www, sub, 또는 루트의 경우 @)
+provider = gandi
+ip_version = ipv4
+; --- 인증 정보 (아래 두 가지 방법 중 하나 선택) ---
+gandi_personal_access_token = 여기에_Gandi_PAT를_입력하세요
+; gandi_api_key = 여기에_Gandi_API_키_사용중단됨을_입력하세요
+gandi_ttl = 300                      ; 선택 사항: 레코드 TTL (기본값 300, 최소 300)
+update_period = 10m
+
+; -----------------------------------------------------------------------------
+; 프로바이더: GCP (Google Cloud DNS - 구글 클라우드 디엔에스)
+; API 문서: https://cloud.google.com/dns/docs/reference/v1
+; 인증 방식: 서비스 계정 키 JSON
+; -----------------------------------------------------------------------------
+[gcp_클라우드인스턴스_ipv4]
+domain = yourdomain.com              ; 기본 도메인 (GCP의 관리형 영역 이름과 일치해야 함)
+owner = dyn                          ; 서브도메인 부분 (예: www, sub, 또는 루트의 경우 @)
+provider = gcp
+ip_version = ipv4
+gcp_project_id = 여기에_GCP_프로젝트_ID를_입력하세요
+gcp_managed_zone_name = 여기에_관리형_영역_이름을_입력하세요 ; Cloud DNS의 관리형 영역 이름
+gcp_credentials_json = '{"type": "service_account", "project_id": "...", ...}' ; 서비스 계정 키의 JSON 문자열을 한 줄로 붙여넣으세요
+gcp_ttl = 300                        ; 선택 사항: 레코드 TTL (기본값 300)
+update_period = 15m
+
+; -----------------------------------------------------------------------------
+; 프로바이더: GoIP (goip.de, goip.it - 고아이피)
+; API 문서: https://www.goip.de/update-url.html
+; 인증 방식: 사용자 이름 및 비밀번호
+; -----------------------------------------------------------------------------
+[goip_독일집_ipv4]
+domain = yoursubdomain.goip.de       ; GoIP의 FQDN (예: myhome.goip.de 또는 myhome.goip.it)
+owner = @                            ; 보통 @ (domain이 FQDN이므로)
+provider = goip
+ip_version = ipv4
+goip_username = 여기에_GoIP_사용자이름을_입력하세요
+goip_password = 여기에_GoIP_비밀번호를_입력하세요
+update_period = 30m
+
+; -----------------------------------------------------------------------------
+; 프로바이더: Hetzner DNS (헤츠너 디엔에스)
+; API 문서: https://dns.hetzner.com/api-docs
+; 인증 방식: API 토큰 및 Zone ID
+; -----------------------------------------------------------------------------
+[hetzner_클라우드서버_ipv4]
+domain = yourdomain.com              ; 기본 도메인 (Hetzner DNS의 Zone 이름과 일치해야 함)
+owner = dyn                          ; 서브도메인 부분 (예: www, sub, 또는 루트의 경우 @)
+provider = hetzner
+ip_version = ipv4
+hetzner_token = 여기에_Hetzner_DNS_API_토큰을_입력하세요
+hetzner_zone_id = 여기에_Hetzner_Zone_ID를_입력하세요
+hetzner_ttl = 300                    ; 선택 사항: 레코드 TTL (기본값 300, 최소 60 가능성)
+update_period = 10m
+
+; -----------------------------------------------------------------------------
+; 프로바이더: Infomaniak (인포매니악 - 스위스)
+; API 문서: (Infomaniak DynDNS API를 검색하세요)
+; 인증 방식: 사용자 이름 (종종 도메인 이름) 및 비밀번호
+; -----------------------------------------------------------------------------
+[infomaniak_스위스서버_ipv4]
+domain = yourdomain.com              ; Infomaniak에서 관리하는 도메인
+owner = dyn                          ; 서브도메인 부분
+provider = infomaniak
+ip_version = ipv4
+infomaniak_username = 여기에_Infomaniak_사용자이름_또는_도메인을_입력하세요
+infomaniak_password = 여기에_Infomaniak_비밀번호를_입력하세요
+update_period = 20m
+
+; -----------------------------------------------------------------------------
+; 프로바이더: INWX (인우엑스 - 독일)
+; API 문서: (INWX DynDNS API를 검색하세요)
+; 인증 방식: 사용자 이름 및 비밀번호
+; -----------------------------------------------------------------------------
+[inwx_독일서버_ipv4]
+domain = yourdomain.de               ; INWX에서 관리하는 도메인
+owner = dyn                          ; 서브도메인 부분
+provider = inwx
+ip_version = ipv4
+inwx_username = 여기에_INWX_사용자이름을_입력하세요
+inwx_password = 여기에_INWX_비밀번호를_입력하세요
+update_period = 1h
+
+; -----------------------------------------------------------------------------
+; 프로바이더: Ionos (1&1 IONOS - 아이오노스)
+; API 문서: https://developer.hosting.ionos.com/docs/dns
+; 인증 방식: API 키 (접두사 + '.' + 시크릿)
+; -----------------------------------------------------------------------------
+[ionos_호스팅_ipv4]
+domain = yourdomain.com              ; Ionos에서 관리하는 기본 도메인
+owner = dyn                          ; 서브도메인 부분 (예: www, sub, 또는 루트의 경우 @)
+provider = ionos
+ip_version = ipv4
+ionos_api_key = 여기에_Ionos_API_키_접두사.여기에_Ionos_API_키_시크릿을_입력하세요
+ionos_ttl = 3600                     ; 선택 사항: 레코드 TTL (기본값 3600)
+update_period = 15m
+
+; -----------------------------------------------------------------------------
+; 프로바이더: Linode (리노드)
+; API 문서: https://www.linode.com/docs/api/domains/
+; 인증 방식: 개인용 액세스 토큰 (Personal Access Token)
+; -----------------------------------------------------------------------------
+[linode_가상서버_ipv4]
+domain = yourdomain.com              ; Linode에서 관리하는 기본 도메인
+owner = dyn                          ; 서브도메인 부분 (예: www, sub, 또는 루트의 경우 @)
+provider = linode
+ip_version = ipv4
+linode_token = 여기에_Linode_개인용_액세스_토큰을_입력하세요
+; linode_ttl = 300                   ; 선택 사항: Linode는 ttl_sec 사용, 기본값은 도메인의 기본 TTL
+update_period = 10m
+
+; -----------------------------------------------------------------------------
+; 프로바이더: LuaDNS (루아디엔에스)
+; API 문서: https://www.luadns.com/api.html
+; 인증 방식: 이메일 및 API 토큰 (HTTP Basic Auth로 사용)
+; -----------------------------------------------------------------------------
+[luadns_API테스트_ipv4]
+domain = yourdomain.com              ; LuaDNS에서 관리하는 기본 도메인
+owner = dyn                          ; 서브도메인 부분 (FQDN 끝에 '.' 포함)
+provider = luadns
+ip_version = ipv4
+luadns_email = 여기에_LuaDNS_이메일을_입력하세요@example.com
+luadns_token = 여기에_LuaDNS_API_토큰을_입력하세요
+luadns_ttl = 300                     ; 선택 사항: 레코드 TTL (API에서 가져오거나 기본값 300)
+update_period = 5m
+
+; -----------------------------------------------------------------------------
+; 프로바이더: MyAddr.tools (마이어드레스툴즈)
+; API 문서: https://myaddr.tools/ (API/업데이트 URL 정보 확인)
+; 인증 방식: API 키
+; -----------------------------------------------------------------------------
+[myaddr_내IP_ipv4]
+domain = yourhost.myaddr.tools       ; 업데이트할 FQDN (로깅/식별용)
+owner = @                            ; 보통 @ (API 키가 FQDN에 연결되어 있으므로)
+provider = myaddr
+ip_version = ipv4                    ; MyAddr.tools는 요청 IP 및 'ip' 파라미터 기준 업데이트
+myaddr_api_key = 여기에_MyAddr.tools_API_키를_입력하세요
+update_period = 30m
+
+; -----------------------------------------------------------------------------
+; 프로바이더: Name.com (네임닷컴)
+; API 문서: https://www.name.com/api-docs
+; 인증 방식: 사용자 이름 및 API 토큰 (HTTP Basic Auth)
+; -----------------------------------------------------------------------------
+[namecom_도메인등록_ipv4]
+domain = yourdomain.com              ; Name.com에서 관리하는 기본 도메인
+owner = dyn                          ; 서브도메인 부분 (예: www, sub, 또는 루트의 경우 @)
+provider = namecom
+ip_version = ipv4
+namecom_username = 여기에_Name.com_사용자이름을_입력하세요
+namecom_token = 여기에_Name.com_API_토큰을_입력하세요
+namecom_ttl = 300                    ; 선택 사항: 레코드 TTL (최소 300)
+update_period = 15m
+
+; -----------------------------------------------------------------------------
+; 프로바이더: NameSilo (네임사일로)
+; API 문서: https://www.namesilo.com/api-reference
+; 인증 방식: API 키
+; -----------------------------------------------------------------------------
+[namesilo_저렴한도메인_ipv4]
+domain = yourdomain.com              ; NameSilo에서 관리하는 도메인
+owner = dyn                          ; 서브도메인 부분 (API는 'host'에 FQDN 사용)
+provider = namesilo
+ip_version = ipv4
+namesilo_api_key = 여기에_NameSilo_API_키를_입력하세요
+namesilo_ttl = 3600                  ; 선택 사항: 레코드 TTL (최소 3600, 최대 2592001)
+update_period = 1h
+
+; -----------------------------------------------------------------------------
+; 프로바이더: Netcup (넷컵 - 독일)
+; API 문서: (Netcup CCP API DNS를 검색하세요)
+; 인증 방식: 고객 번호, API 키, API 비밀번호 (세션 로그인용)
+; -----------------------------------------------------------------------------
+[netcup_독일호스팅_ipv4]
+domain = yourdomain.de               ; Netcup에서 관리하는 도메인
+owner = dyn                          ; 서브도메인 부분 (예: www, sub, 또는 루트의 경우 @)
+provider = netcup
+ip_version = ipv4
+netcup_customer_number = 여기에_Netcup_고객번호를_입력하세요
+netcup_api_key = 여기에_Netcup_API_키를_입력하세요
+netcup_api_password = 여기에_Netcup_API_비밀번호를_입력하세요 ; 이전 net_api_password에서 수정
+; netcup_ttl =                        ; TTL은 Netcup에서 Zone 기본값을 따르는 것으로 보임
+update_period = 30m
+
+; -----------------------------------------------------------------------------
+; 프로바이더: Njalla (냘라)
+; API 문서: (Njalla DynDNS API를 검색하거나 지원팀에 문의하세요)
+; 인증 방식: API 키
+; -----------------------------------------------------------------------------
+[njalla_프라이버시도메인_ipv4]
+domain = yourdomain.com              ; Njalla에서 관리하는 도메인
+owner = dyn                          ; 서브도메인 부분, 또는 domain이 FQDN이면 @
+provider = njalla
+ip_version = ipv4
+njalla_api_key = 여기에_Njalla_API_키를_입력하세요
+update_period = 10m
+
+; -----------------------------------------------------------------------------
+; 프로바이더: No-IP (노아이피)
+; API 문서: https://www.noip.com/integrate/request
+; 인증 방식: 사용자 이름 및 비밀번호
+; -----------------------------------------------------------------------------
+[noip_무료DDNS_ipv4]
+domain = yourhost.ddns.net           ; No-IP의 FQDN 호스트명
+owner = @                            ; 보통 @ (domain이 FQDN이므로)
+provider = noip
+ip_version = ipv4
+noip_username = 여기에_No-IP_사용자이름_또는_이메일을_입력하세요
+noip_password = 여기에_No-IP_비밀번호를_입력하세요
+update_period = 25m
+
+; -----------------------------------------------------------------------------
+; 프로바이더: Now-DNS.com (나우디엔에스)
+; API 문서: (Now-DNS DynDNS API를 검색하세요)
+; 인증 방식: 사용자 이름 및 비밀번호
+; -----------------------------------------------------------------------------
+[nowdns_간단DDNS_ipv4]
+domain = yourhost.now-dns.org        ; Now-DNS의 FQDN
+owner = @                            ; 보통 @ (domain이 FQDN이므로)
+provider = nowdns
+ip_version = ipv4
+nowdns_username = 여기에_Now-DNS_사용자이름을_입력하세요
+nowdns_password = 여기에_Now-DNS_비밀번호를_입력하세요
+update_period = 1h
+
+; -----------------------------------------------------------------------------
+; 프로바이더: OpenDNS (오픈디엔에스 - Cisco Umbrella)
+; API 문서: https://support.opendns.com/hc/en-us/articles/227982827
+; 인증 방식: OpenDNS 사용자 이름 및 비밀번호 (네트워크용)
+; -----------------------------------------------------------------------------
+[opendns_네트워크보호_ipv4]
+domain = 내_OpenDNS_네트워크_레이블  ; OpenDNS 대시보드의 네트워크 "레이블"
+owner = @                            ; 보통 @ (업데이트가 네트워크 레이블에 적용되므로)
+provider = opendns
+ip_version = ipv4
+opendns_username = 여기에_OpenDNS_사용자이름을_입력하세요
+opendns_password = 여기에_OpenDNS_비밀번호를_입력하세요
+update_period = 5m
+
+; -----------------------------------------------------------------------------
+; 프로바이더: OVH (오브이에이치)
+; API 문서: DynHost (DynDNS v2 유사) 또는 ZoneDNS API (더 복잡함)
+; 인증 방식: 모드에 따라 다름
+; -----------------------------------------------------------------------------
+[ovh_dynhost모드_ipv4]
+domain = yourdomain.com              ; OVH에서 관리하는 도메인
+owner = dyn                          ; DynHost용 서브도메인 부분
+provider = ovh
+ip_version = ipv4
+ovh_mode = dynhost                   ; 'dynhost' 또는 'api'
+; --- DynHost 모드 자격 증명 ---
+ovh_dynhost_username = 여기에_OVH_DynHost_사용자이름을_입력하세요 ; 종종 nic-handle + '-' + FQDN 부분
+ovh_dynhost_password = 여기에_OVH_DynHost_비밀번호를_입력하세요
+update_period = 10m
+
+[ovh_api모드_ipv4]
+domain = yourdomain.com              ; 기본 도메인 (OVH의 Zone 이름)
+owner = sub                          ; 서브도메인 부분 (예: www, sub, 또는 루트의 경우 @)
+provider = ovh
+ip_version = ipv4
+ovh_mode = api
+ovh_api_endpoint = ovh-eu            ; ovh-eu, ovh-ca, ovh-us, kimsufi-eu 등
+ovh_app_key = 여기에_OVH_App_Key를_입력하세요
+ovh_app_secret = 여기에_OVH_App_Secret을_입력하세요
+ovh_consumer_key = 여기에_OVH_Consumer_Key를_입력하세요
+; ovh_ttl =                           ; API 모드용 TTL (OVH API 문서 확인)
+update_period = 15m
+
+; -----------------------------------------------------------------------------
+; 프로바이더: Porkbun (포크번)
+; API 문서: https://porkbun.com/api/json/v3/documentation
+; 인증 방식: API 키 및 시크릿 API 키
+; -----------------------------------------------------------------------------
+[porkbun_내도메인_ipv4]
+domain = yourdomain.com              ; Porkbun에서 관리하는 기본 도메인
+owner = dyn                          ; 서브도메인 부분 (예: www, sub, 또는 루트의 경우 @)
+provider = porkbun
+ip_version = ipv4
+porkbun_api_key = 여기에_Porkbun_API_키를_입력하세요
+porkbun_secret_api_key = 여기에_Porkbun_시크릿_API_키를_입력하세요
+porkbun_ttl = 300                    ; 선택 사항: 레코드 TTL (기본값 300)
+update_period = 5m
+
+; -----------------------------------------------------------------------------
+; 프로바이더: Route 53 (AWS - 아마존 루트53)
+; API 문서: https://docs.aws.amazon.com/Route53/latest/APIReference/
+; 인증 방식: AWS Access Key ID 및 Secret Access Key (Route53 권한을 가진 IAM 사용자)
+; -----------------------------------------------------------------------------
+[route53_aws서비스_ipv4]
+domain = yourdomain.com              ; 기본 도메인 (Route 53의 호스팅 영역 이름과 일치해야 함)
+owner = dyn                          ; 서브도메인 부분 (예: www, sub, 또는 루트의 경우 @)
+provider = route53
+ip_version = ipv4
+route53_aws_access_key_id = 여기에_AWS_Access_Key_ID를_입력하세요
+route53_aws_secret_access_key = 여기에_AWS_Secret_Access_Key를_입력하세요
+route53_zone_id = 여기에_Route53_호스팅영역_ID를_입력하세요 ; 예: Z123ABCDEFGHIJ
+route53_ttl = 300                    ; 선택 사항: 레코드 TTL (기본값 300)
+update_period = 10m
+
+; -----------------------------------------------------------------------------
+; 프로바이더: Selfhost.de (셀프호스트 - 독일)
+; API 문서: (웹사이트에서 DynDNS API 정보 확인, 종종 PDF 형태)
+; 인증 방식: 사용자 이름 및 비밀번호
+; -----------------------------------------------------------------------------
+[selfhostde_독일DDNS_ipv4]
+domain = yourdomain.selfhost.bz      ; Selfhost.de 도메인
+owner = @                            ; 또는 서브도메인 부분
+provider = selfhostde
+ip_version = ipv4
+selfhostde_username = 여기에_Selfhost.de_사용자이름을_입력하세요
+selfhostde_password = 여기에_Selfhost.de_비밀번호를_입력하세요
+update_period = 30m
+
+; -----------------------------------------------------------------------------
+; 프로바이더: Servercow.de (서버카우 - 독일)
+; API 문서: (Servercow DNS API v1을 검색하세요)
+; 인증 방식: X-Auth-Username 및 X-Auth-Password 헤더
+; -----------------------------------------------------------------------------
+[servercow_독일서버2_ipv4]
+domain = yourdomain.de               ; Servercow에서 관리하는 도메인
+owner = dyn                          ; 서브도메인 부분 (예: www, sub, 또는 루트의 경우 @)
+provider = servercow
+ip_version = ipv4
+servercow_username = 여기에_Servercow_사용자이름을_입력하세요
+servercow_password = 여기에_Servercow_비밀번호를_입력하세요
+servercow_ttl = 300                  ; 선택 사항: 레코드 TTL (기본값 300)
+update_period = 15m
+
+; -----------------------------------------------------------------------------
+; 프로바이더: Spdyn (시큐어포인트 다인디엔에스)
+; API 문서: https://wiki.securepoint.de/SPDyn/Variablen
+; 인증 방식: 사용자 이름 + 비밀번호 또는 토큰 (user=hostname, pass=token)
+; -----------------------------------------------------------------------------
+[spdyn_사용자패스워드_ipv4]
+domain = yourhost.spdns.de           ; Spdyn의 FQDN
+owner = @                            ; 보통 @ (domain이 FQDN이므로)
+provider = spdyn
+ip_version = ipv4
+spdyn_username = 여기에_Spdyn_사용자이름을_입력하세요
+spdyn_password = 여기에_Spdyn_비밀번호를_입력하세요
+update_period = 20m
+
+[spdyn_토큰방식_ipv4]
+domain = anotherhost.spdns.de        ; Spdyn의 FQDN
+owner = @                            ; 보통 @ (domain이 FQDN이므로)
+provider = spdyn
+ip_version = ipv4
+spdyn_token = 여기에_Spdyn_토큰을_입력하세요        ; 토큰 사용 시, username/password는 프로바이더 로직에서 무시됨
+update_period = 20m
+
+; -----------------------------------------------------------------------------
+; 프로바이더: Strato (스트라토 - 독일)
+; API 문서: (Strato DynDNS API를 검색하세요)
+; 인증 방식: 도메인 이름 (사용자 이름 역할) 및 비밀번호 (HTTP Basic Auth)
+; -----------------------------------------------------------------------------
+[strato_독일도메인_ipv4]
+domain = yourdomain.de               ; Strato에서 관리하는 도메인 (인증 시 사용자 이름으로 사용)
+owner = dyn                          ; 서브도메인 부분
+provider = strato
+ip_version = ipv4
+strato_password = 여기에_Strato_DDNS_비밀번호를_입력하세요
+update_period = 1h
+
+; -----------------------------------------------------------------------------
+; 프로바이더: Variomedia.de (바리오미디어 - 독일)
+; API 문서: (Variomedia DynDNS API를 검색하세요)
+; 인증 방식: 이메일 및 비밀번호 (HTTP Basic Auth)
+; IP 버전에 따라 API 호스트 변경 (dyndns4 또는 dyndns6)
+; -----------------------------------------------------------------------------
+[variomedia_독일웹호스팅_ipv4]
+domain = yourdomain.de               ; Variomedia에서 관리하는 도메인
+owner = dyn                          ; 서브도메인 부분
+provider = variomedia
+ip_version = ipv4                    ; 이 설정에 따라 dyndns4.variomedia.de 사용
+variomedia_email = 여기에_Variomedia_이메일을_입력하세요@example.com
+variomedia_password = 여기에_Variomedia_비밀번호를_입력하세요
+update_period = 30m
+
+; -----------------------------------------------------------------------------
+; 프로바이더: Vultr (벌쳐)
+; API 문서: https://www.vultr.com/api/
+; 인증 방식: API 키 (Bearer 토큰)
+; -----------------------------------------------------------------------------
+[vultr_클라우드VPS_ipv4]
+domain = yourdomain.com              ; Vultr에서 관리하는 기본 도메인
+owner = dyn                          ; 서브도메인 부분 (예: www, sub, 또는 루트의 경우 @)
+provider = vultr
+ip_version = ipv4
+vultr_api_key = 여기에_Vultr_API_키를_입력하세요
+vultr_ttl = 300                      ; 선택 사항: 레코드 TTL (기본값 300)
+update_period = 10m
+
+; -----------------------------------------------------------------------------
+; 프로바이더: ZoneEdit (존에딧)
+; API 문서: (ZoneEdit DynDNS API 또는 일반 DynDNS v2 검색)
+; 인증 방식: 사용자 이름 및 토큰 (비밀번호 역할)
+; -----------------------------------------------------------------------------
+[zoneedit_오래된DDNS_ipv4]
+domain = yourdomain.com              ; ZoneEdit에서 관리하는 도메인
+owner = dyn                          ; 서브도메인 부분, 또는 루트의 경우 @, 와일드카드는 *
+provider = zoneedit
+ip_version = ipv4
+zoneedit_username = 여기에_ZoneEdit_사용자이름을_입력하세요
+zoneedit_token = 여기에_ZoneEdit_토큰_또는_비밀번호를_입력하세요
+update_period = 25m
+
+; --- 추가적인 레코드 설정은 위와 같은 형식으로 계속 추가 ---

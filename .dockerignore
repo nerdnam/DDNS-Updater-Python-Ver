@@ -1,0 +1,53 @@
+# .dockerignore
+
+# Git 관련 파일 및 디렉토리
+.git/
+.gitignore
+.gitattributes
+
+# Python 가상 환경 디렉토리
+.venv/
+venv/
+env/
+ENV/
+
+# Python 캐시 및 컴파일된 파일
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+
+# Docker 관련 파일 (이미지 내부에 포함될 필요 없음)
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# 설정 및 상태 파일 (런타임 시 볼륨으로 마운트)
+# ddns_config.ini_total_providers 예제 파일도 제외합니다.
+ddns_config.ini_total_providers
+ddns_state.json 
+# 만약 호스트에 config/, data/ 디렉토리를 만들고 그 안에 파일을 둔다면,
+# 해당 디렉토리 자체를 제외할 수도 있습니다.
+# config/
+# data/
+
+# 로그 디렉토리 (런타임 시 볼륨으로 마운트)
+logs/
+
+# 운영체제 및 IDE 관련 파일
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# 문서 파일 (선택 사항)
+*.md
+LICENSE
+
+# 기타 개발 관련 파일 (필요에 따라 추가)
+# .env
+# .flaskenv
+# tests/

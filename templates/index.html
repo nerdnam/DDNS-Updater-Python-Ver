@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DDNS Updater</title>
+    <link rel="icon" href="{{ url_for('static', filename='favicon.svg') }}" sizes="any" type="image/svg+xml">
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" type="text/css">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+            margin: 0;
+            background-color: #fafafa;
+            color: #3b4151;
+            line-height: 1.4; 
+        }
+        .container { max-width: 1200px; margin: 0 auto; padding: 0 10px; } 
+        h1, h2, h3 { color: #3b4151; font-weight: 600; margin-top: 18px; margin-bottom: 8px;} 
+        h1 { text-align: left; font-size: 1.7em; border-bottom: 1px solid #e0e0e0; padding-bottom: 8px;}
+        h2 { font-size: 1.2em; border-bottom: 1px solid #e0e0e0; padding-bottom: 6px;}
+        h3 { font-size: 1.05em; color: #555; }
+        hr { border: none; border-top: 1px solid #e0e0e0; margin: 15px 0; } 
+
+        table { width: 100%; border-collapse: collapse; margin-bottom: 15px; table-layout: auto; box-shadow: 0 1px 2px rgba(0,0,0,0.05); background-color: #fff;}
+        th, td { border: 1px solid #e8e8e8; padding: 7px 9px; text-align: left; vertical-align: top; word-wrap: break-word; font-size: 0.8em; } 
+        th { background-color: #f9fafb; font-weight: 600; color: #4b5563;}
+        td small { font-size: 0.9em; color: #6b7280; display: block; margin-top: 1px; } 
+
+        .flashes { list-style-type: none; padding: 0; margin: 0 0 12px 0; } 
+        .flashes li { padding: 8px 10px; margin-bottom: 6px; border-radius: 4px; font-size: 0.85em; border-left-width: 4px; border-left-style: solid;} 
+        .flashes .success { background-color: #f0fdf4; color: #166534; border-left-color: #22c55e; }
+        .flashes .error { background-color: #fef2f2; color: #991b1b; border-left-color: #ef4444; }
+        .flashes .warning { background-color: #fffbeb; color: #92400e; border-left-color: #f59e0b; }
+        .flashes .info { background-color: #eff6ff; color: #1e40af; border-left-color: #3b82f6; }
+
+        pre { background-color: #1e293b; color: #cbd5e1; padding: 10px; border: 1px solid #334155; white-space: pre-wrap; word-wrap: break-word; max-height: 220px; overflow-y: auto; margin-top: 4px; margin-bottom: 12px; border-radius: 4px; font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace; font-size: 0.75em; line-height: 1.3; } 
+        pre#log-content { max-height: 250px; } 
+        .api-guide pre { max-height: 300px; }
+
+        button, select, input[type="text"] { padding: 5px 8px; margin-left: 4px; border: 1px solid #d1d5db; border-radius: 4px; background-color: #fff; font-size: 0.8em; box-sizing: border-box; } 
+        button { cursor: pointer; background-color: #f3f4f6; }
+        button:hover { background-color: #e5e7eb; }
+        button.btn-primary { background-color: #3b82f6; color: white; border-color: #3b82f6; }
+        button.btn-primary:hover { background-color: #2563eb; }
+        td form { margin: 0; display: flex; justify-content: center; }
+
+        .api-guide { background-color: #fff; border: 1px solid #e0e0e0; padding: 15px; margin-top: 25px; margin-bottom: 25px; border-radius: 4px; box-shadow: 0 1px 2px rgba(0,0,0,0.03); font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif; line-height: 1.4; } 
+        .api-guide h3 { font-size: 1.1em; color: #333; margin-top: 0; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 1px solid #f0f0f0; } 
+        .api-guide p, .api-guide ul { margin-top: 6px; margin-bottom: 6px; padding-left: 0; font-size: 0.95em; } 
+        .api-guide li { margin-bottom: 3px; margin-left: 18px; font-size: 0.95em; } 
+        .api-guide code { font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace; background-color: #f3f4f6; color: #c7254e; padding: 1px 4px; border-radius: 3px; font-size: 0.9em; } 
+        .api-guide pre > code {
+            display: block;
+            background-color: #1e293b;
+            color: #cbd5e1;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-size: 0.95em; 
+            line-height: 1.5; 
+        }
+        .global-settings { margin-top: 0px; margin-bottom: 0px; padding: 0px 0px 10px 15px; border: 2px solid #e0e0e0; background-color: #f9fafb; font-size: 0.80em; border-radius: 4px; } 
+        .global-settings span { margin-right: 0px; display: inline-block; margin-bottom: 5px; } 
+        .global-settings strong { margin-right: 0px; font-weight: 600; margin-bottom: 0px; } 
+
+        .bottom-info {
+            text-align: center;
+            margin-top: 20px; 
+            padding: 10px 0; 
+            color: #9ca3af;
+            font-size: 0.8em; 
+        }
+        .bottom-info .info-content {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap; 
+            gap: 8px; 
+        }
+        .bottom-info .info-content span,
+        .bottom-info .info-content a {
+             white-space: nowrap; 
+        }
+        .bottom-info .info-content span:not(:last-child)::after,
+        .bottom-info .info-content a:not(:last-child)::after {
+            content: "|";
+            margin-left: 8px; 
+            color: #ccc; 
+        }
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>DDNS Updater</h1>
+
+        {# --- Flash 메시지 표시 영역 --- #}
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %} <ul class=flashes> {% for category, message in messages %} <li class="{{ category }}">{{ message }}</li> {% endfor %} </ul> {% endif %}
+        {% endwith %}
+        {# -------------------------- #}
+
+        <h2>Configured DDNS Records</h2>
+        <div style="overflow-x:auto;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th> <th>Domain</th> <th>Host</th> <th>Provider</th> <th>IP Ver</th>
+                        <th>Status</th> <th>Last Update</th> <th>Current IP</th> 
+                        <th>Previous IPs</th> {# <--- 컬럼명 변경 (선택 사항) #}
+                        <th>Request</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for record in all_records %}
+                    <tr>
+                        <td><strong>{{ record.id }}</strong></td>
+                        <td>{{ record.domain }}</td>
+                        <td>{{ record.owner }}</td>
+                        <td>{{ record.provider }}</td>
+                        <td>{{ record.get('ip_version', 'N/A') }}</td>
+                        <td>
+                            {% set status1 = record.get('status1', 'N/A') %}
+                            {% if status1 == 'Update Failed' %} {# 'Failed' 대신 'Update Failed'로 변경된 상태값 반영 #}
+                                <span style="color: red;">Update Failed</span>
+                            {% elif status1 == 'Updated' %}
+                                <span style="color: green;">Updated</span>
+                            {% else %}
+                                {{ status1 or 'N/A' }}
+                            {% endif %}
+                        </td>
+                        <td><small>{{ record.get('status2', '') }}</small></td>
+                        <td>{{ record.get('current_ip', 'N/A') or 'N/A' }}</td>
+                        {# --- ★★★ Previous IP 표시 로직 수정 ★★★ --- #}
+                        <td>
+                            {% set previous_ips_list = record.get('previous_ips', []) %}
+                            {% if previous_ips_list %}
+                                {{ previous_ips_list | join(', ') }} {# 리스트를 쉼표로 구분하여 표시 #}
+                            {% else %}
+                                N/A
+                            {% endif %}
+                        </td>
+                        {# --- ★★★ 수정 끝 ★★★ --- #}
+                        <td style="text-align: center;">
+                            <form action="{{ url_for('run_update') }}" method="post" style="display: inline;">
+                                <input type="hidden" name="record_section" value="{{ record.id }}">
+                                <button type="submit" class="btn btn-sm btn-primary">Update Now</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="10">No DDNS records configured.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {# --- 전역 설정 표시 --- #}
+        <div class="global-settings">
+            <br><span>These are default values from <strong>ddns_config.ini</strong> [ddns] section. Record-specific settings override these.</span></br>
+            <span>Global Defaults:
+            <br> - Nick Prefix: {{ global_config.get('nick', 'N/A') }}
+            <br> - Timezone: {{ global_config.get('default_timezone', 'N/A') }}
+            <br> - HTTP Timeout: {{ global_config.get('default_http_timeout', 'N/A') }} ({{ global_config.get('default_http_timeout_seconds', 'N/A') }}sec)</br></span>
+        </div>
+        {# ---------------------- #}
+
+        {# --- 로그 표시 섹션 --- #}
+        <h2>Log Output</h2>
+        <pre id="log-content">{{ log_content }}</pre>
+        <div>
+            <label for="log-select">View log for:</label>
+            <select id="log-select" name="log_record_section">
+                <option value="">-- Select Record --</option>
+                {% for record in all_records %}
+                <option value="{{ record.id }}">{{ record.id }} ({{ record.domain }})</option>
+                {% endfor %}
+            </select>
+            <button onclick="fetchLog()">Fetch Log</button>
+        </div>
+
+        {# --- API 사용법 안내 --- #}
+        <div class="api-guide">
+            <h3>API Usage Guide</h3>
+            <p>Retrieve current DDNS status information in JSON format.</p>
+            <p><strong>Base Endpoint:</strong> <code>{{ request.url_root }}api</code><br>
+               <strong>Method:</strong> <code>GET</code></p>
+            <ul>
+                <li><code>/api</code>: Returns a dictionary of all records (key: record ID).</li>
+                <li><code>/api?id=<record_id></code>: Returns status for a specific record ID (e.g., <code>/api?id=main_server</code>).</li>
+                <li><code>/api?domain=<domain_name></code>: Returns status for a specific domain (e.g., <code>/api?domain=example.com</code>).</li>
+            </ul>
+            <p><strong>Example JSON Response (Single Record):</strong></p>
+            <pre><code>{
+  "id": "string",
+  "domain": "string",
+  "owner": "string",
+  "provider": "string",
+  "ip_version": "string",
+  "status1": "string",
+  "status2": "string",
+  "status3": "string",
+  "current_ip": "string",
+  "previous_ips": ["string"],
+  "date1": "string",
+  "date2": "string",
+  "time1": "string",
+  "time2": "string"
+}</code></pre>
+            <p><strong>Example JSON Response (All Records - Dictionary):</strong></p>
+            <pre><code>{
+  "main_server": { /* ... record data ... */ },
+  "sub_server": { /* ... record data ... */ }
+}</code></pre> {# 예시 레코드 이름 수정 #}
+        </div>
+        {# ---------------------- #}
+
+    </div> {# End of .container #}
+
+    {# --- 페이지 맨 아래 정보 표시 --- #}
+    <div class="bottom-info">
+        <div class="info-content">
+            <span>Current Public IP Detected: IPv4: <span id="footer-current-ipv4">{{ current_ipv4 or 'N/A' }}</span></span>
+            <a href="https://github.com/nerdnam/DDNS-Updater-Python-Ver" target="_blank" rel="noopener noreferrer">GitHub DDNS Updater-python Ver. IPv4 Only</a>
+        </div>
+    </div>
+    {# ----------------------------- #}
+
+    {# --- JavaScript --- #}
+    <script>
+        function fetchLog() {
+            const selectElement = document.getElementById('log-select');
+            const sectionName = selectElement.value;
+            const logContentElement = document.getElementById('log-content');
+            if (!sectionName) {
+                logContentElement.textContent = "Please select a record to fetch the log.";
+                return;
+            }
+            logContentElement.textContent = `Fetching log for [${sectionName}]...`;
+            fetch(`/get_log?record_section=${encodeURIComponent(sectionName)}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    logContentElement.textContent = data.log_content || data.error || "Received empty log content.";
+                })
+                .catch(error => {
+                    console.error('Error fetching log:', error);
+                    logContentElement.textContent = `Error fetching log: ${error}`;
+                });
+        }
+    </script>
+    {# ---------------- #}
+</body>
+</html>
