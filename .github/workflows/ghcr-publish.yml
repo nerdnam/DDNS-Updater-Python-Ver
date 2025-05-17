@@ -1,0 +1,67 @@
+# .github/workflows/ghcr-publish.yml
+
+name: Publish Docker image to GHCR
+
+# 워크플로우 트리거 조건
+on:
+  push:
+    branches: [ "main" ] # main 브랜치에 푸시될 때 실행
+    tags:
+      - 'v*.*.*'        # v1.0.0 같은 태그가 푸시될 때 실행
+  pull_request:
+    branches: [ "main" ] # main 브랜치로의 Pull Request 시 (빌드만 하고 푸시는 안 함)
+  workflow_dispatch:      # 수동으로 실행 가능하도록 설정
+
+jobs:
+  build_and_push_to_ghcr:
+    runs-on: ubuntu-latest # 빌드를 실행할 가상 환경
+    # GHCR에 쓰기 위한 권한 설정
+    permissions:
+      contents: read      # 리포지토리 코드를 읽기 위함
+      packages: write     # GHCR(패키지)에 쓰기 위함
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4 # 소스 코드 체크아웃
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3 # Docker Buildx 설정
+
+    - name: Log in to GitHub Container Registry
+      # main 브랜치에 푸시되거나, 태그가 푸시될 때만 GHCR에 로그인
+      if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+      uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }} # GitHub 사용자 이름 (워크플로우를 실행하는 액터)
+        password: ${{ secrets.GITHUB_TOKEN }} # 자동으로 생성되는 GITHUB_TOKEN 사용
+
+    # Docker 이미지에 사용할 메타데이터(태그, 레이블) 생성
+    - name: Docker meta
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        # 이미지 이름은 ghcr.io/소유자/이미지명 형식을 따릅니다.
+        # github.repository는 "소유자/리포지토리명" 형식이므로 이를 활용합니다.
+        images: ghcr.io/${{ github.repository }}
+        tags: |
+          type=schedule
+          type=ref,event=branch
+          type=ref,event=pr
+          type=semver,pattern={{version}} # Git 태그 (v1.0.0 -> 1.0.0)
+          type=semver,pattern={{major}}.{{minor}} # Git 태그 (v1.0.0 -> 1.0)
+          type=sha,prefix=,suffix=,format=short # Git commit SHA (짧은 버전)
+          # 기본 브랜치(main)에 푸시 시 latest 태그 추가
+          type=raw,value=latest,enable={{is_default_branch}}
+
+    - name: Build and push Docker image to GHCR
+      uses: docker/build-push-action@v5
+      with:
+        context: . # Dockerfile이 있는 경로
+        file: ./Dockerfile # Dockerfile 경로
+        # main 브랜치에 푸시되거나, 태그가 푸시될 때만 이미지 푸시
+        push: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')) }}
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
