@@ -8,6 +8,7 @@ on:
     branches: [ "main" ] # main 브랜치에 푸시될 때 실행
     tags:
       - 'v*.*.*'        # v1.0.0 같은 태그가 푸시될 때 실행
+      - 'v*.*'        # v0.01 같은 태그가 푸시될 때 실행
   pull_request:
     branches: [ "main" ] # main 브랜치로의 Pull Request 시 (빌드만 하고 푸시는 안 함)
   workflow_dispatch:      # 수동으로 실행 가능하도록 설정
