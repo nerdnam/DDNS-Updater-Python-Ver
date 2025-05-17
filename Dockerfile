@@ -15,7 +15,7 @@ ENV TZ=Etc/UTC
 #    - Flask 실행 관련 환경 변수 기본값 설정
 #      docker-compose.yml 또는 docker run -e 옵션으로 오버라이드 가능
 ENV FLASK_RUN_HOST=0.0.0.0
-ENV FLASK_RUN_PORT=40007 
+ENV FLASK_RUN_PORT=30007 
 #    - Flask Secret Key는 보안상 Dockerfile에 직접 넣는 것보다
 #      실행 시 환경 변수로 주입하는 것이 훨씬 안전합니다.
 # ENV FLASK_SECRET_KEY="your_default_secret_key_here_if_needed" 
@@ -46,7 +46,7 @@ COPY . .
 
 # 7. 애플리케이션 포트 노출 (Flask UI용)
 #    - ENV FLASK_RUN_PORT 값과 일치시키는 것이 좋음
-EXPOSE 40007 
+EXPOSE 30007 
 
 # 8. 데이터 볼륨 설정 (로그 디렉토리)
 #    - 설정 파일과 상태 파일은 실행 시 호스트 볼륨으로 마운트하는 것을 권장

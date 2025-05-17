@@ -3,7 +3,7 @@ version: '3.8'
 services:
   ddns-updater-python-ver: # 서비스 이름
     # Docker Hub 등 외부 레지스트리의 이미지를 사용할 경우:
-    image: nerdnam/ddns-updater-python-ver:latest
+    image: ghcr.io/nerdnam/ddns-updater-python-ver:latest
     # --- 또는 로컬 Dockerfile을 사용하여 빌드할 경우 (위 image 라인 주석 처리 또는 삭제) ---
     # build:
     #   context: . # Dockerfile이 있는 현재 디렉토리
@@ -11,7 +11,7 @@ services:
     # -----------------------------------------------------------------------------
     container_name: ddns-updater-python-ver # 실행될 컨테이너의 이름
     ports:
-      - "40007:40007" # <호스트_포트>:<컨테이너_포트>
+      - "30007:30007" # <호스트_포트>:<컨테이너_포트>
     volumes:
       # 호스트에 config 디렉토리를 만들고 그 안에 ddns_config.ini 파일을 위치시키세요.
       # docker-compose.yml 파일이 있는 위치를 기준으로 상대 경로를 사용합니다.
@@ -23,7 +23,7 @@ services:
       - PYTHONUNBUFFERED=1
       - TZ=Asia/Seoul # 컨테이너 타임존 설정 (예: Asia/Seoul, Etc/UTC)
       - FLASK_RUN_HOST=0.0.0.0
-      - FLASK_RUN_PORT=40007 # Dockerfile 및 run.py와 일치
+      - FLASK_RUN_PORT=30007 # Dockerfile 및 run.py와 일치
       # 중요: 실제 운영 시에는 강력하고 예측 불가능한 시크릿 키를 사용하고,
       # .env 파일을 통해 주입하거나 Docker secrets 기능을 사용하는 것이 더 안전합니다.
       - FLASK_SECRET_KEY=your_very_strong_production_secret_key_!@#$%^&*()
