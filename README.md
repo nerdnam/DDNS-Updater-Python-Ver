@@ -13,7 +13,7 @@
 
 <p align="center">
 <a href="https://gethomepage.dev/" target="_blank">
-  <img src="https://github.com/gethomepage/homepage/raw/main/assets/logo- горизонтальный-color.svg" width="204" alt="Homepage Logo">
+  <img src="https://github.com/gethomepage/homepage/raw/main/assets/logo-horizontal-color.svg" width="204" alt="Homepage Logo">
 </a>
 <br>
 <i>Homepage 위젯 연동 예시 (위젯 설정은 아래 참고)</i>
@@ -24,11 +24,11 @@
     - My DDNS Status: # 서비스 그룹명 (원하는 대로 변경)
         - DDNS Updater-py:
             icon: https://raw.githubusercontent.com/nerdnam/DDNS-Updater-Python-Ver/main/favicon/favicon.png # 직접 아이콘 경로 지정
-            href: http://YOUR_SERVER_IP:40007 # 실제 접속 주소로 변경
+            href: http://YOUR_SERVER_IP:30007 # 실제 접속 주소로 변경
             description: DDNS Updater Status
             widget:
               type: customapi
-              url: http://YOUR_SERVER_IP:40007/api?id=YOUR_RECORD_ID # 실제 API 주소 및 레코드 ID로 변경
+              url: http://YOUR_SERVER_IP:30007/api?id=YOUR_RECORD_ID # 실제 API 주소 및 레코드 ID로 변경
               refreshInterval: 3600000 # 1시간 (밀리초 단위, 선택 사항, 기본값 10초)
               method: GET # 선택 사항
               mappings:
@@ -120,7 +120,7 @@ GitHub Container Registry (GHCR)에 미리 빌드된 Docker 이미지를 사용�
 **이미지 Pull (선택 사항, `docker run` 또는 `docker-compose up` 시 자동으로 받아옴):**
 ```bash
 docker pull ghcr.io/nerdnam/ddns-updater-python-ver:latest
-# 특정 버전을 사용하려면:
+# 특정 버전을 사용하려면 (예: 0.0.1 버전):
 # docker pull ghcr.io/nerdnam/ddns-updater-python-ver:0.0.1
 ```
 
@@ -133,24 +133,24 @@ mkdir -p ./config
 mkdir -p ./data
 
 # 예제 설정 파일을 ./config/ddns_config.ini 로 복사 후, 내용을 자신의 환경에 맞게 수정합니다.
-# cp ddns_config.ini_total_providers ./config/ddns_config.ini 
+# cp ddns_config.ini_total_providers ./config/ddns_config.ini
 # nano ./config/ddns_config.ini # 또는 선호하는 편집기 사용
 
 docker run -d \
   --name ddns-updater-py \
-  -p 40007:40007 \
-  -v $(pwd)/config/ddns_config.ini:/app/ddns_config.ini:ro \
-  -v $(pwd)/data/ddns_state.json:/app/ddns_state.json \
-  -v $(pwd)/data/logs:/app/logs \
+  -p 30007:30007 \
+  -v "$(pwd)/config/ddns_config.ini:/app/ddns_config.ini:ro" \
+  -v "$(pwd)/data/ddns_state.json:/app/ddns_state.json" \
+  -v "$(pwd)/data/logs:/app/logs" \
   -e PYTHONUNBUFFERED=1 \
   -e TZ="Asia/Seoul" \
   -e FLASK_RUN_HOST="0.0.0.0" \
-  -e FLASK_RUN_PORT="40007" \
+  -e FLASK_RUN_PORT="30007" \
   -e FLASK_SECRET_KEY="your_very_strong_production_secret_key_!@#$%^&*()" \
   ghcr.io/nerdnam/ddns-updater-python-ver:latest
 ```
-*   `-v $(pwd)/config/ddns_config.ini...`: 호스트의 설정 파일을 컨테이너로 읽기 전용(`:ro`)으로 마운트합니다. **반드시 실제 경로로 수정하고, `ddns_config.ini` 파일을 준비해야 합니다.**
-*   `-v $(pwd)/data/...`: 상태 파일과 로그를 호스트에 저장하기 위해 마운트합니다.
+*   `-v "$(pwd)/config/ddns_config.ini..."`: 호스트의 설정 파일을 컨테이너로 읽기 전용(`:ro`)으로 마운트합니다. **반드시 실제 경로로 수정하고, `ddns_config.ini` 파일을 준비해야 합니다.**
+*   `-v "$(pwd)/data/..."`: 상태 파일과 로그를 호스트에 저장하기 위해 마운트합니다.
 *   `-e FLASK_SECRET_KEY=...`: **반드시 강력하고 예측 불가능한 값으로 변경하세요.** 보안상 매우 중요합니다.
 *   `ghcr.io/nerdnam/ddns-updater-python-ver:latest`: 사용할 Docker 이미지입니다. 특정 버전을 사용하려면 태그를 변경하세요 (예: `:0.0.1`).
 
@@ -173,7 +173,7 @@ services:
     # -----------------------------------------------------------------------------
     container_name: ddns-updater-py # 실행될 컨테이너의 이름
     ports:
-      - "40007:40007" # <호스트_포트>:<컨테이너_포트>
+      - "30007:30007" # <호스트_포트>:<컨테이너_포트>
     volumes:
       # 호스트에 config 디렉토리를 만들고 그 안에 ddns_config.ini 파일을 위치시키세요.
       # docker-compose.yml 파일이 있는 위치를 기준으로 상대 경로를 사용합니다.
@@ -185,7 +185,7 @@ services:
       - PYTHONUNBUFFERED=1
       - TZ=Asia/Seoul # 컨테이너 타임존 설정 (예: Asia/Seoul, Etc/UTC)
       - FLASK_RUN_HOST=0.0.0.0
-      - FLASK_RUN_PORT=40007 # Dockerfile 및 run.py와 일치
+      - FLASK_RUN_PORT=30007 # Dockerfile 및 run.py와 일치
       # 중요: 실제 운영 시에는 강력하고 예측 불가능한 시크릿 키를 사용하고,
       # .env 파일을 통해 주입하거나 Docker secrets 기능을 사용하는 것이 더 안전합니다.
       - FLASK_SECRET_KEY=your_very_strong_production_secret_key_!@#$%^&*()
@@ -239,7 +239,7 @@ cd DDNS-Updater-Python-Ver
 python3 -m venv .venv
 source .venv/bin/activate  # Linux/macOS
 # .venv\Scripts\activate.bat  # Windows (cmd)
-# .venv\Scripts\Activate.ps1 # Windows (PowerShell) - 실행 정책 문제 시 Set-ExecutionPolicy RemoteSigned -Scope Process
+# .venv\Scripts\activate.ps1 # Windows (PowerShell) - 실행 정책 문제 시: Set-ExecutionPolicy RemoteSigned -Scope Process
 ```
 
 #### 2.3 의존성 패키지 설치
@@ -259,13 +259,13 @@ cp ddns_config.ini_total_providers ddns_config.ini
 ```bash
 python run.py
 ```
-웹 UI는 기본적으로 `http://0.0.0.0:40007` (또는 `http://localhost:40007`)에서 접근 가능합니다.
+웹 UI는 기본적으로 `http://0.0.0.0:30007` (또는 `http://localhost:30007`)에서 접근 가능합니다.
 
 ---
 
 ## 웹 UI
 
-애플리케이션 실행 후, 웹 브라우저에서 `http://<서버_IP_또는_localhost>:40007`로 접속하면 다음 기능을 사용할 수 있습니다:
+애플리케이션 실행 후, 웹 브라우저에서 `http://<서버_IP_또는_localhost>:30007`로 접속하면 다음 기능을 사용할 수 있습니다:
 
 *   **설정된 DDNS 레코드 목록**: 각 레코드의 ID, 도메인, 호스트, 프로바이더, IP 버전, 현재 상태, 마지막 업데이트 시간, 현재 IP, 이전 IP 목록을 보여줍니다.
 *   **수동 업데이트**: 각 레코드 옆의 "Update Now" 버튼을 클릭하여 즉시 업데이트를 시도할 수 있습니다.
@@ -278,7 +278,7 @@ python run.py
 
 현재 DDNS 상태 정보를 JSON 형식으로 조회할 수 있습니다.
 
-*   **기본 엔드포인트**: `http://<서버_IP_또는_localhost>:40007/api`
+*   **기본 엔드포인트**: `http://<서버_IP_또는_localhost>:30007/api`
 *   **HTTP 메소드**: `GET`
 
 **사용 가능한 경로:**
