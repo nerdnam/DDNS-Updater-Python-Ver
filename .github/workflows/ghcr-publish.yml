@@ -4,11 +4,11 @@ name: Publish Docker image to GHCR
 
 on:
   push:
-    # branches: [ "main" ] # <--- 이 부분을 주석 처리하거나 삭제
     tags:
-      - 'v*.*.*' # 오직 Git 태그 푸시 시에만 실행
+      - 'v*.*.*' # 오직 Git 태그 푸시 시에만 실행 (예: v0.0.1, v0.0.2)
+  # branches: [ "main" ] # main 브랜치 푸시 트리거 제거 또는 주석 처리
   pull_request:
-    branches: [ "main" ]
+    branches: [ "main" ] # PR 시에는 빌드 테스트만 (푸시 안 함)
   workflow_dispatch:
 
 jobs:
@@ -26,13 +26,8 @@ jobs:
       uses: docker/setup-buildx-action@v3
 
     - name: Log in to GitHub Container Registry
-      # if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')) # 조건 수정 불필요 또는 삭제
-      # 태그 푸시 시에만 실행되므로, 이 if 조건은 좀 더 단순화하거나 제거해도 됩니다.
-      # 단, Pull Request 시에는 로그인/푸시 안 하도록 하려면 유지해야 합니다. (현재 PR 트리거는 빌드만 함)
-      # 여기서는 태그 푸시 시에만 로그인 및 푸시가 이루어지도록 로그인 스텝 자체의 if 조건을
-      # github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') 로 변경하거나,
-      # 어차피 워크플로우 자체가 태그 푸시 시에만 실행되므로 if를 생략하고 항상 로그인/푸시 시도하도록 할 수 있습니다.
-      # (build-push-action의 push 조건에서 최종 제어)
+      # 태그 푸시 시에만 로그인 및 푸시가 이루어지도록 함
+      if: startsWith(github.ref, 'refs/tags/v')
       uses: docker/login-action@v3
       with:
         registry: ghcr.io
@@ -45,30 +40,23 @@ jobs:
       with:
         images: ghcr.io/${{ github.repository }}
         tags: |
-          # Git 태그가 vMajor.Minor.Patch 형식일 때 (예: v0.0.1)
-          # 1. Docker 태그로 Major.Minor.Patch (예: 0.0.1) 생성
+          # Git 태그 vMajor.Minor.Patch (예: v0.0.1)에 대해
+          # 1. Docker 태그 Major.Minor.Patch (예: 0.0.1) 생성
           type=semver,pattern={{version}}
-          # 2. Docker 태그로 Major.Minor (예: 0.0) 생성
+          # 2. Docker 태그 Major.Minor (예: 0.0) 생성
           type=semver,pattern={{major}}.{{minor}}
-          # 3. Docker 태그로 Major (예: 0) 생성 (선택 사항)
-          # type=semver,pattern={{major}}
-          # 4. 이 태그 푸시가 latest여야 함을 명시 (가장 높은 SemVer 태그가 latest가 됨)
-          #    또는 항상 Git 태그 푸시 시 latest를 만들도록 설정
-          type=raw,value=latest # Git 태그 푸시 시 항상 latest 생성
-          # 또는, type=edge,branch=main # main 브랜치 푸시 시 'edge' 태그 생성 (만약 main 빌드를 원한다면)
-          # type=ref,event=branch # main 브랜치 푸시 시 'main' 태그 생성 (만약 main 빌드를 원한다면)
-      # 참고: 위 tags 설정은 예시이며, 원하는 동작에 맞게 metadata-action 문서를 보고 정확히 설정해야 합니다.
-      # "가장 최근 SemVer 태그가 latest가 되도록" 하는 옵션이 있다면 그것을 사용하는 것이 가장 좋습니다.
-      # 간단하게는, 태그 푸시 시에는 항상 latest를 생성하고, main 푸시 시에는 latest를 만들지 않는 것입니다.
+          # 3. 항상 'latest' 태그도 함께 생성
+          type=raw,value=latest
+        # 중요: 위 설정은 Git 태그 푸시 시에만 이 워크플로우가 실행된다는 전제 하에 'latest'를 만듭니다.
+        # 만약 main 브랜치 푸시도 다른 태그(예: 'edge')로 빌드하고 싶다면 on: branches 와 meta tags를 추가 조정해야 합니다.
 
     - name: Build and push Docker image to GHCR
+      if: startsWith(github.ref, 'refs/tags/v') # 태그 푸시 시에만 실행
       uses: docker/build-push-action@v5
       with:
         context: .
         file: ./Dockerfile
-        # 워크플로우 자체가 Git 태그 푸시 시에만 실행되므로, push 조건은 항상 true로 두거나,
-        # 좀 더 명시적으로 startsWith(github.ref, 'refs/tags/v') 조건을 사용할 수 있습니다.
-        push: ${{ startsWith(github.ref, 'refs/tags/v') }}
+        push: true # 태그 푸시이므로 항상 푸시
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
         cache-from: type=gha
