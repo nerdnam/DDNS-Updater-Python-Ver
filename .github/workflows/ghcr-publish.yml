@@ -44,7 +44,7 @@ jobs:
           # 1. Docker 태그 Major.Minor.Patch (예: 0.0.1) 생성
           type=semver,pattern={{version}}
           # 2. Docker 태그 Major.Minor (예: 0.0) 생성
-          type=semver,pattern={{major}}.{{minor}}
+          # type=semver,pattern={{major}}.{{minor}}
           # 3. 항상 'latest' 태그도 함께 생성
           type=raw,value=latest
         # 중요: 위 설정은 Git 태그 푸시 시에만 이 워크플로우가 실행된다는 전제 하에 'latest'를 만듭니다.
