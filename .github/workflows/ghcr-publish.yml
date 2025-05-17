@@ -2,66 +2,73 @@
 
 name: Publish Docker image to GHCR
 
-# 워크플로우 트리거 조건
 on:
   push:
-    branches: [ "main" ] # main 브랜치에 푸시될 때 실행
+    # branches: [ "main" ] # <--- 이 부분을 주석 처리하거나 삭제
     tags:
-      - 'v*.*.*'        # v1.0.0 같은 태그가 푸시될 때 실행
-      - 'v*.*'        # v0.01 같은 태그가 푸시될 때 실행
+      - 'v*.*.*' # 오직 Git 태그 푸시 시에만 실행
   pull_request:
-    branches: [ "main" ] # main 브랜치로의 Pull Request 시 (빌드만 하고 푸시는 안 함)
-  workflow_dispatch:      # 수동으로 실행 가능하도록 설정
+    branches: [ "main" ]
+  workflow_dispatch:
 
 jobs:
   build_and_push_to_ghcr:
-    runs-on: ubuntu-latest # 빌드를 실행할 가상 환경
-    # GHCR에 쓰기 위한 권한 설정
+    runs-on: ubuntu-latest
     permissions:
-      contents: read      # 리포지토리 코드를 읽기 위함
-      packages: write     # GHCR(패키지)에 쓰기 위함
+      contents: read
+      packages: write
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v4 # 소스 코드 체크아웃
+      uses: actions/checkout@v4
 
     - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3 # Docker Buildx 설정
+      uses: docker/setup-buildx-action@v3
 
     - name: Log in to GitHub Container Registry
-      # main 브랜치에 푸시되거나, 태그가 푸시될 때만 GHCR에 로그인
-      if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+      # if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')) # 조건 수정 불필요 또는 삭제
+      # 태그 푸시 시에만 실행되므로, 이 if 조건은 좀 더 단순화하거나 제거해도 됩니다.
+      # 단, Pull Request 시에는 로그인/푸시 안 하도록 하려면 유지해야 합니다. (현재 PR 트리거는 빌드만 함)
+      # 여기서는 태그 푸시 시에만 로그인 및 푸시가 이루어지도록 로그인 스텝 자체의 if 조건을
+      # github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') 로 변경하거나,
+      # 어차피 워크플로우 자체가 태그 푸시 시에만 실행되므로 if를 생략하고 항상 로그인/푸시 시도하도록 할 수 있습니다.
+      # (build-push-action의 push 조건에서 최종 제어)
       uses: docker/login-action@v3
       with:
         registry: ghcr.io
-        username: ${{ github.actor }} # GitHub 사용자 이름 (워크플로우를 실행하는 액터)
-        password: ${{ secrets.GITHUB_TOKEN }} # 자동으로 생성되는 GITHUB_TOKEN 사용
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
 
-    # Docker 이미지에 사용할 메타데이터(태그, 레이블) 생성
     - name: Docker meta
       id: meta
       uses: docker/metadata-action@v5
       with:
-        # 이미지 이름은 ghcr.io/소유자/이미지명 형식을 따릅니다.
-        # github.repository는 "소유자/리포지토리명" 형식이므로 이를 활용합니다.
         images: ghcr.io/${{ github.repository }}
         tags: |
-          type=schedule
-          type=ref,event=branch
-          type=ref,event=pr
-          type=semver,pattern={{version}} # Git 태그 (v1.0.0 -> 1.0.0)
-          type=semver,pattern={{major}}.{{minor}} # Git 태그 (v1.0.0 -> 1.0)
-          type=sha,prefix=,suffix=,format=short # Git commit SHA (짧은 버전)
-          # 기본 브랜치(main)에 푸시 시 latest 태그 추가
-          type=raw,value=latest,enable={{is_default_branch}}
+          # Git 태그가 vMajor.Minor.Patch 형식일 때 (예: v0.0.1)
+          # 1. Docker 태그로 Major.Minor.Patch (예: 0.0.1) 생성
+          type=semver,pattern={{version}}
+          # 2. Docker 태그로 Major.Minor (예: 0.0) 생성
+          type=semver,pattern={{major}}.{{minor}}
+          # 3. Docker 태그로 Major (예: 0) 생성 (선택 사항)
+          # type=semver,pattern={{major}}
+          # 4. 이 태그 푸시가 latest여야 함을 명시 (가장 높은 SemVer 태그가 latest가 됨)
+          #    또는 항상 Git 태그 푸시 시 latest를 만들도록 설정
+          type=raw,value=latest # Git 태그 푸시 시 항상 latest 생성
+          # 또는, type=edge,branch=main # main 브랜치 푸시 시 'edge' 태그 생성 (만약 main 빌드를 원한다면)
+          # type=ref,event=branch # main 브랜치 푸시 시 'main' 태그 생성 (만약 main 빌드를 원한다면)
+      # 참고: 위 tags 설정은 예시이며, 원하는 동작에 맞게 metadata-action 문서를 보고 정확히 설정해야 합니다.
+      # "가장 최근 SemVer 태그가 latest가 되도록" 하는 옵션이 있다면 그것을 사용하는 것이 가장 좋습니다.
+      # 간단하게는, 태그 푸시 시에는 항상 latest를 생성하고, main 푸시 시에는 latest를 만들지 않는 것입니다.
 
     - name: Build and push Docker image to GHCR
       uses: docker/build-push-action@v5
       with:
-        context: . # Dockerfile이 있는 경로
-        file: ./Dockerfile # Dockerfile 경로
-        # main 브랜치에 푸시되거나, 태그가 푸시될 때만 이미지 푸시
-        push: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')) }}
+        context: .
+        file: ./Dockerfile
+        # 워크플로우 자체가 Git 태그 푸시 시에만 실행되므로, push 조건은 항상 true로 두거나,
+        # 좀 더 명시적으로 startsWith(github.ref, 'refs/tags/v') 조건을 사용할 수 있습니다.
+        push: ${{ startsWith(github.ref, 'refs/tags/v') }}
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
         cache-from: type=gha
