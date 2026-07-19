@@ -1,8 +1,10 @@
 # /ddns-updater-python-ver-ipv4/ddns_updater/app.py
 import os
+import re
+import secrets
 import datetime
-import logging 
-import sys 
+import logging
+import sys
 from flask import Flask, render_template, request, redirect, url_for, flash, get_flashed_messages, jsonify
 import pytz 
 from datetime import timezone as dt_timezone # alias 추가
@@ -18,7 +20,9 @@ template_dir_abs = os.path.join(project_root_abs, 'templates')
 static_dir_abs = os.path.join(project_root_abs, 'static')
 
 app = Flask(__name__, template_folder=template_dir_abs, static_folder=static_dir_abs)
-app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'a_very_secure_default_secret_key_!@#$%^&*()') 
+# FLASK_SECRET_KEY 미설정 시, 예측 가능한 고정 문자열 대신 프로세스마다
+# 무작위 키를 생성한다 (세션은 flash 메시지에만 쓰이므로 재시작 시 무효화되어도 무방).
+app.secret_key = os.environ.get('FLASK_SECRET_KEY') or secrets.token_hex(32)
 
 def get_project_paths_for_app():
     config_file = os.path.join(project_root_abs, CONFIG_FILE_NAME)
@@ -261,6 +265,10 @@ def get_log():
     record_section = request.args.get("record_section")
     if not record_section:
         return jsonify({"error": "No record section specified"}), 400
+
+    # 파일 경로에 삽입되는 값이므로 경로 조작(../ 등)을 차단한다.
+    if not re.fullmatch(r'[A-Za-z0-9_.\-]+', record_section) or '..' in record_section:
+        return jsonify({"error": "Invalid record section name"}), 400
 
     nick_prefix = global_config.get('nick', 'default_nick')
     log_dir_for_record = os.path.join(log_dir_base_app, nick_prefix)
