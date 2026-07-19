@@ -1,4 +1,5 @@
 # /ddns-updater-python-ver-ipv4/ddns_updater/ip_fetcher.py
+import ipaddress
 import requests
 import logging
 import sys
@@ -32,21 +33,13 @@ def _get_ip_from_service(url, logger_to_use, timeout_seconds, user_agent):
         response.raise_for_status()
         ip_address = response.text.strip()
 
-        if ip_address and '.' in ip_address and len(ip_address.split('.')) == 4:
-            all_octets_valid = True
-            for octet in ip_address.split('.'):
-                if not octet.isdigit() or not (0 <= int(octet) <= 255):
-                    all_octets_valid = False
-                    break
-            if all_octets_valid:
-                logger_to_use.info(f"Successfully retrieved IPv4 from {service_name}: {ip_address}")
-                return ip_address
-            else:
-                logger_to_use.warning(f"Invalid IPv4 format received from {service_name}: '{ip_address}'")
-                return None
-        else:
+        try:
+            ipaddress.IPv4Address(ip_address)
+        except (ipaddress.AddressValueError, ValueError):
             logger_to_use.warning(f"Non-IPv4 or invalid format received from {service_name}: '{ip_address}'")
             return None
+        logger_to_use.info(f"Successfully retrieved IPv4 from {service_name}: {ip_address}")
+        return ip_address
             
     except requests.exceptions.HTTPError as e:
         logger_to_use.warning(f"HTTP error from {service_name}: {e.response.status_code} {e.response.reason}")

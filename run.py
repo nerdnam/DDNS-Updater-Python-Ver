@@ -392,14 +392,14 @@ if __name__ == "__main__":
         main_logger.info("Starting Flask web server for UI...")
         flask_host = os.environ.get("FLASK_RUN_HOST", "0.0.0.0")
         flask_port = int(os.environ.get("FLASK_RUN_PORT", 40007))
-        # Flask 디버그 모드는 설정 파일의 debug_mode 또는 환경 변수로 제어
+        # Flask/Werkzeug 디버거는 원격 코드 실행이 가능하므로(0.0.0.0 바인딩 환경에서 특히 위험)
+        # 설정 파일의 debug_mode(로깅 상세도)와는 분리하고,
+        # 명시적으로 FLASK_DEBUG=true 환경 변수를 준 경우에만 활성화한다.
         flask_debug_env = os.environ.get("FLASK_DEBUG", "").lower()
-        if flask_debug_env == "true":
-            flask_should_debug = True
-        elif flask_debug_env == "false":
-            flask_should_debug = False
-        else: # 환경 변수 없으면 설정 파일 값 따름
-            flask_should_debug = DEBUG_MODE_ENABLED
+        flask_should_debug = flask_debug_env == "true"
+        if DEBUG_MODE_ENABLED and not flask_should_debug:
+            main_logger.info("Config debug_mode only affects logging verbosity. "
+                             "Set FLASK_DEBUG=true explicitly to enable the Flask debugger (not recommended in production).")
         
         main_logger.info(f"Flask debug mode: {flask_should_debug}")
 
@@ -425,15 +425,17 @@ if __name__ == "__main__":
     else:
         main_logger.info("Flask UI is disabled by DDNS_UPDATER_NO_UI environment variable.")
 
+    exit_code = 0
     try:
-        if not _shutdown_requested: 
+        if not _shutdown_requested:
             scheduled_update_loop()
-    except (KeyboardInterrupt, SystemExit): 
-        if not _shutdown_requested: 
+    except (KeyboardInterrupt, SystemExit):
+        if not _shutdown_requested:
              main_logger.info("DDNS Updater loop interrupted...")
-             _shutdown_requested = True 
+             _shutdown_requested = True
     except Exception as e:
         main_logger.critical("Critical error in main execution loop. Exiting.", exc_info=True)
+        exit_code = 1
     finally:
         main_logger.info("DDNS Updater has stopped.")
-        sys.exit(0)
+        sys.exit(exit_code)

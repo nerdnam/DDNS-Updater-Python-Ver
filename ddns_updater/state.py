@@ -2,11 +2,17 @@
 import json
 import os
 import sys
-from datetime import datetime, timezone as dt_timezone, timedelta 
-import pytz 
+import tempfile
+import threading
+from datetime import datetime, timezone as dt_timezone, timedelta
+import pytz
 
 STATE_FILE_NAME = 'ddns_state.json'
 MAX_PREVIOUS_IPS = 3 # 이전 IP 저장 개수를 3개로 설정
+
+# Flask 스레드(수동 업데이트)와 스케줄러 스레드가 동시에 상태 파일을
+# 읽고-수정-쓰기 하므로, 프로세스 내 동시 접근을 직렬화한다.
+_state_lock = threading.RLock()
 
 def _get_state_file_path(project_root_dir=None):
     if project_root_dir is None:
@@ -53,9 +59,30 @@ def save_state(state_data_dict, state_file_path=None, project_root_dir=None):
         state_dir = os.path.dirname(state_file_path)
         if not os.path.exists(state_dir) and state_dir:
             os.makedirs(state_dir, exist_ok=True)
-            
-        with open(state_file_path, 'w', encoding='utf-8') as f:
-            json.dump(state_data_dict, f, indent=2, ensure_ascii=False)
+
+        # 임시 파일에 먼저 쓰고 os.replace로 교체하여, 쓰기 도중 프로세스가
+        # 죽어도 기존 상태 파일이 깨지지 않도록 한다.
+        with _state_lock:
+            fd, tmp_path = tempfile.mkstemp(
+                prefix=STATE_FILE_NAME + '.', suffix='.tmp',
+                dir=state_dir if state_dir else '.')
+            try:
+                with os.fdopen(fd, 'w', encoding='utf-8') as f:
+                    json.dump(state_data_dict, f, indent=2, ensure_ascii=False)
+                try:
+                    os.replace(tmp_path, state_file_path)
+                except OSError:
+                    # 단일 파일 바인드 마운트(docker-compose) 등에서는 rename이
+                    # EBUSY로 실패하므로 제자리 쓰기로 폴백한다.
+                    with open(state_file_path, 'w', encoding='utf-8') as f:
+                        json.dump(state_data_dict, f, indent=2, ensure_ascii=False)
+                    os.unlink(tmp_path)
+            except BaseException:
+                try:
+                    os.unlink(tmp_path)
+                except OSError:
+                    pass
+                raise
         return True, "State saved successfully."
     except IOError as e:
         print(f"Error (state.save_state): writing state file {state_file_path}: {e}", file=sys.stderr)
@@ -71,6 +98,15 @@ def update_record_state(section_id: str,
     if not section_id:
         return False, "Section ID (section_name) cannot be empty for state update."
 
+    with _state_lock:
+        return _update_record_state_locked(section_id, new_info_dict,
+                                           record_timezone_str, project_root_dir)
+
+
+def _update_record_state_locked(section_id: str,
+                                new_info_dict: dict,
+                                record_timezone_str: str,
+                                project_root_dir: str) -> tuple[bool, str]:
     current_full_state = load_state(project_root_dir=project_root_dir)
     record_specific_state = current_full_state.setdefault(section_id, {})
 
@@ -93,10 +129,14 @@ def update_record_state(section_id: str,
         # ---------------------------------------------
 
         # current_ip 업데이트
+        # 실패(None) 시에는 마지막으로 확인된 정상 IP를 지우지 않고 유지한다.
         if 'current_ip' in new_info_dict:
             new_ip_from_update = new_info_dict.get('current_ip')
-            record_specific_state['current_ip'] = new_ip_from_update if new_ip_from_update is not None else ""
-        elif 'current_ip' not in record_specific_state: 
+            if new_ip_from_update is not None:
+                record_specific_state['current_ip'] = new_ip_from_update
+            else:
+                record_specific_state.setdefault('current_ip', "")
+        elif 'current_ip' not in record_specific_state:
             record_specific_state.setdefault('current_ip', "")
 
 
@@ -110,13 +150,21 @@ def update_record_state(section_id: str,
             record_specific_state['status1'] = "Update Failed"
         
         # last_success_update_timestamp_utc 처리
-        if update_call_successful and 'last_attempt_utc' in new_info_dict:
+        # 이 타임스탬프는 cooldown 기준점이므로, 실제로 IP가 바뀌었거나
+        # 최초 성공일 때만 갱신한다. "변경 없음" 확인 성공 시에도 갱신하면
+        # cooldown이 계속 연장되어 update_period 주기의 IP 확인이 막힌다.
+        new_ip_for_success = new_info_dict.get('current_ip')
+        ip_actually_changed = (new_ip_for_success is not None and
+                               new_ip_for_success != old_current_ip)
+        never_succeeded_before = not record_specific_state.get('last_success_update_timestamp_utc')
+        if update_call_successful and 'last_attempt_utc' in new_info_dict and \
+           (ip_actually_changed or never_succeeded_before):
             last_success_dt_utc = new_info_dict['last_attempt_utc']
             if isinstance(last_success_dt_utc, datetime):
                  if last_success_dt_utc.tzinfo is None:
                      last_success_dt_utc = last_success_dt_utc.replace(tzinfo=dt_timezone.utc)
                  record_specific_state['last_success_update_timestamp_utc'] = last_success_dt_utc.timestamp()
-        elif 'last_success_update_timestamp_utc' not in record_specific_state: 
+        elif 'last_success_update_timestamp_utc' not in record_specific_state:
             record_specific_state.setdefault('last_success_update_timestamp_utc', None)
 
 
