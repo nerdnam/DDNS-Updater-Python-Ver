@@ -120,6 +120,14 @@ class IonosProvider(BaseProvider):
             self.logger.error(f"Ionos API JSON decode error: {e}. Response: {response_content_str if 'response_content_str' in locals() else 'N/A'}")
             return None, f"API JSON Decode Error: {e}"
 
+    def _get_ttl_value(self):
+        """설정의 ttl(문자열일 수 있음)을 int로 변환. 실패 시 기본값."""
+        try:
+            return int(self.config.get('ttl', self.DEFAULT_TTL))
+        except (TypeError, ValueError):
+            self.logger.warning(f"Ionos: Invalid ttl value '{self.config.get('ttl')}'. Using default {self.DEFAULT_TTL}.")
+            return self.DEFAULT_TTL
+
     def _get_zone_id(self):
         """설정된 domain에 해당하는 Zone ID 조회 (Go의 getZones 참조)"""
         self.logger.debug(f"Ionos: Getting Zone ID for domain '{self.domain}'")
@@ -159,8 +167,10 @@ class IonosProvider(BaseProvider):
         
         data, error_msg = self._make_api_request("GET", endpoint_path, query_params=params)
         if error_msg:
-            return None, error_msg
-        
+            # data에는 {"error_type": "NotFoundError"} 같은 마커가 담길 수 있으므로
+            # 호출자가 404를 구분할 수 있도록 그대로 전달한다.
+            return data, error_msg
+
         # Ionos API는 /records 엔드포인트에서 'records' 키 없이 바로 레코드 배열을 반환할 수 있음.
         # Go 코드에서는 responseData.Records 로 접근.
         if isinstance(data, list): # 응답이 레코드 객체 배열
@@ -182,7 +192,7 @@ class IonosProvider(BaseProvider):
             "name": fqdn, # FQDN
             "type": record_type,
             "content": ip_address,
-            "ttl": self.config.get('ttl', self.DEFAULT_TTL), # 설정된 TTL 또는 기본값
+            "ttl": self._get_ttl_value(), # 설정된 TTL 또는 기본값 (int 변환)
             "prio": 0, # A/AAAA 레코드에는 보통 0
             "disabled": False
         }]
@@ -217,7 +227,7 @@ class IonosProvider(BaseProvider):
         payload = {
             "content": ip_address,
             # 기존 레코드의 다른 값들은 유지 (Go 코드 참조)
-            "ttl": existing_record_data.get('ttl', self.config.get('ttl', self.DEFAULT_TTL)),
+            "ttl": existing_record_data.get('ttl', self._get_ttl_value()),
             "prio": existing_record_data.get('prio', 0),
             "disabled": existing_record_data.get('disabled', False),
             # name, type은 PUT 요청 시 필요 없을 수 있음 (URL에 포함되므로). API 문서 확인.

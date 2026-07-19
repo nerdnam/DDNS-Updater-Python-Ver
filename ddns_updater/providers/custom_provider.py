@@ -123,12 +123,14 @@ class CustomProvider(BaseProvider):
 
         try:
             target_url = self._build_update_url(ip_address, record_type)
-        except KeyError as e: # URL 템플릿에 필요한 변수가 config에 없는 경우
-            error_msg = f"Failed to build custom URL. Missing placeholder in URL or config: {e}"
+        except (KeyError, IndexError, ValueError) as e:
+            # KeyError: 템플릿 변수 누락, IndexError: 위치 기반 {}, ValueError: 짝이 안 맞는 중괄호 등
+            error_msg = f"Failed to build custom URL. Invalid template or missing placeholder: {e}"
             self.logger.error(error_msg)
             return False, error_msg
-            
-        self.logger.info(f"{self.NAME.capitalize()}: Attempting to update using URL: {target_url}")
+
+        # URL에 userinfo(user:pass@)나 쿼리 자격증명이 포함될 수 있으므로 마스킹하여 로깅.
+        self.logger.info(f"{self.NAME.capitalize()}: Attempting to update using URL: {self.sanitize_error(target_url)}")
 
         headers = {'User-Agent': f'Python-DDNS-Updater/{self.NAME}'}
         timeout = self.config.get('http_timeout_seconds', 10)
@@ -156,5 +158,5 @@ class CustomProvider(BaseProvider):
                 return False, error_message
 
         except requests.exceptions.RequestException as e:
-            self.logger.error(f"{self.NAME.capitalize()} API request failed: {e}")
-            return False, f"Custom URL Request Error: {e}"
+            self.logger.error(f"{self.NAME.capitalize()} API request failed: {self.sanitize_error(e)}")
+            return False, f"Custom URL Request Error: {self.sanitize_error(e)}"

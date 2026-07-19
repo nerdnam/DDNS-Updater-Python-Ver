@@ -100,11 +100,10 @@ class EasydnsProvider(BaseProvider):
                 return False, "API Error: Authentication failed (no_access)."
             elif "illegal_input" in response_text.lower() or "too_soon" in response_text.lower():
                 return False, "API Error: Input error or update too soon (abuse)."
-            elif "no_error" in response_text.lower() or "ok" in response_text.lower():
+            elif response_text.lower().startswith(("noerror", "no_error", "ok")):
                 # 성공. 요청한 IP로 업데이트되었다고 가정.
                 # EasyDNS 응답은 "NOERROR - <ip> - <hostname>" 또는 "OK - <ip> - <hostname>" 형태일 수 있음.
-                # IP 추출 및 비교 로직 추가 권장.
-                # 여기서는 Go 코드의 단순한 성공 처리(IP 반환)를 따름.
+                # 접두사 기반 비교 (substring "ok" 검사는 오류 응답에도 매칭될 수 있음).
                 success_message = f"Successfully updated {hostname_for_query} to {ip_address} (assumed)."
                 if response_text:
                      success_message += f" API Response: '{response_text}'"
@@ -114,5 +113,5 @@ class EasydnsProvider(BaseProvider):
                 return False, f"API Error: Unknown response from server: '{response_text}'"
 
         except requests.exceptions.RequestException as e:
-            self.logger.error(f"{self.NAME.capitalize()} API request failed: {e}")
-            return False, f"API Request Error: {e}"
+            self.logger.error(f"{self.NAME.capitalize()} API request failed: {self.sanitize_error(e)}")
+            return False, f"API Request Error: {self.sanitize_error(e)}"

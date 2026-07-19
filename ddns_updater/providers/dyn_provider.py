@@ -1,4 +1,5 @@
 # ddns_updater/providers/dyn_provider.py
+import re
 import requests
 from urllib.parse import quote # URL에 사용자 이름/키 포함 시 필요할 수 있음
 
@@ -106,40 +107,34 @@ class DynProvider(BaseProvider):
                 return False, "API Error: Hostname is not a FQDN or does not exist (notfqdn)."
             elif response_text.lower().startswith("badrequest"):
                 return False, "API Error: Bad request."
-            elif response_text.lower().startswith("good"):
-                # 성공. 요청한 IP로 업데이트되었다고 가정.
-                # Dyn 응답은 "good <new_ip>" 또는 "nochg <current_ip>" 형태일 수 있음.
-                # IP 추출 및 비교 로직 추가 권장.
+            elif response_text.lower().startswith("good") or response_text.lower().startswith("nochg"):
+                # Dyn 응답은 "good <new_ip>" 또는 "nochg <current_ip>" 형태.
+                is_nochg = response_text.lower().startswith("nochg")
                 extracted_ip = self._extract_ip_from_response(response_text, record_type)
                 if extracted_ip and extracted_ip == ip_address:
-                    success_message = f"Successfully updated {hostname_for_query} to {ip_address}."
-                    if response_text:
-                        success_message += f" API Response: '{response_text}'"
+                    if is_nochg:
+                        success_message = f"IP address {ip_address} for {hostname_for_query} is already up to date."
+                    else:
+                        success_message = f"Successfully updated {hostname_for_query} to {ip_address}."
+                    success_message += f" API Response: '{response_text}'"
                     self.logger.info(success_message)
                     return True, success_message
-                elif extracted_ip: # good인데 IP가 다르면 (nochg의 경우)
-                    if "nochg" in response_text.lower() and extracted_ip == ip_address: # nochg인데 IP가 같으면 성공
-                         success_message = f"IP address {ip_address} for {hostname_for_query} is already up to date."
-                         if response_text:
-                              success_message += f" API Response: '{response_text}'"
-                         self.logger.info(success_message)
-                         return True, success_message
-                    # good인데 IP가 다르거나, nochg인데 IP가 다른 경우
+                elif extracted_ip: # 성공 응답인데 IP가 요청한 값과 다른 경우
                     msg = f"Update reported success-like response ('{response_text}'), but extracted IP ({extracted_ip}) does not match target IP ({ip_address})."
                     self.logger.warning(msg)
-                    return False, msg # IP 불일치 또는 확인 불가 시 실패로 처리
-                else: # good인데 IP 추출 실패
+                    return False, msg
+                else: # 성공 응답인데 IP 추출 실패
                     msg = f"Update reported success-like response ('{response_text}'), but could not extract IP."
                     self.logger.warning(msg)
-                    return False, msg # IP 확인 불가 시 실패로 처리
+                    return False, msg
             # Dyn API는 'badauth', 'numhost', 'nohost', 'abuse' 등의 응답도 반환.
             # 위에서 HTTP 오류 처리 시 일부 커버 가능.
             else:
                 return False, f"API Error: Unknown response from server: '{response_text}'"
 
         except requests.exceptions.RequestException as e:
-            self.logger.error(f"{self.NAME.capitalize()} API request failed: {e}")
-            return False, f"API Request Error: {e}"
+            self.logger.error(f"{self.NAME.capitalize()} API request failed: {self.sanitize_error(e)}")
+            return False, f"API Request Error: {self.sanitize_error(e)}"
 
     def _extract_ip_from_response(self, response_text, record_type):
         """응답 텍스트에서 IP 주소를 추출합니다 (예: "good 1.2.3.4", "nochg 1.2.3.4")."""

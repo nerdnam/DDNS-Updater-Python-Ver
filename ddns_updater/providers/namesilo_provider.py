@@ -138,8 +138,8 @@ class NamesiloProvider(BaseProvider):
             return reply, None # 성공 시 'reply' 객체 반환
             
         except requests.exceptions.RequestException as e:
-            self.logger.error(f"NameSilo API request failed: {e}")
-            return None, f"API Request Error: {e}"
+            self.logger.error(f"NameSilo API request failed: {self.sanitize_error(e)}")
+            return None, f"API Request Error: {self.sanitize_error(e)}"
 
 
     def _get_record_info(self, owner_val, record_type_filter):

@@ -193,5 +193,5 @@ class GoipProvider(BaseProvider):
                 return False, f"API Error: Unknown or unexpected success response: '{response_text}'"
 
         except requests.exceptions.RequestException as e:
-            self.logger.error(f"{self.NAME.capitalize()} API request failed: {e}")
-            return False, f"API Request Error: {e}"
+            self.logger.error(f"{self.NAME.capitalize()} API request failed: {self.sanitize_error(e)}")
+            return False, f"API Request Error: {self.sanitize_error(e)}"

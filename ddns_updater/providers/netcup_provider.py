@@ -97,7 +97,8 @@ class NetcupProvider(BaseProvider):
                 
                 self.logger.error(f"Netcup API call to action '{action}' failed. {error_msg}")
                 # 특정 오류 코드에 따른 예외 매핑 가능
-                if data.get('statuscode') == 2011: # 예: Invalid session ID
+                # data가 dict가 아닐 수 있으므로 (예: JSON 배열/문자열 오류 응답) 가드 필요
+                if isinstance(data, dict) and data.get('statuscode') == 2011: # 예: Invalid session ID
                     return {"error_type": "AuthError"}, error_msg # 세션 만료 등
                 return None, error_msg
             

@@ -94,8 +94,8 @@ class DreamhostProvider(BaseProvider):
             self.logger.error(f"DreamHost API HTTP error: {e.response.status_code if e.response else 'N/A'} - {error_body}")
             return None, f"API HTTP Error: {e.response.status_code if e.response else 'N/A'} - {error_body}"
         except requests.exceptions.RequestException as e:
-            self.logger.error(f"DreamHost API request failed: {e}")
-            return None, f"API Request Error: {e}"
+            self.logger.error(f"DreamHost API request failed: {self.sanitize_error(e)}")
+            return None, f"API Request Error: {self.sanitize_error(e)}"
         except json.JSONDecodeError as e:
             response_text = response.text if 'response' in locals() and hasattr(response, 'text') else 'N/A'
             self.logger.error(f"DreamHost API JSON decode error: {e}. Response: {response_text}")

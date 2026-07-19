@@ -151,7 +151,7 @@ class OvhProvider(BaseProvider):
             else:
                 return False, f"DynHost API Error: Unknown response: '{response_text}'"
         except requests.exceptions.RequestException as e:
-            return False, f"DynHost API Request Error: {e}"
+            return False, f"DynHost API Request Error: {self.sanitize_error(e)}"
 
     def _build_fqdn_for_dynhost(self):
         owner = self.config.get('owner', '@')
@@ -183,7 +183,7 @@ class OvhProvider(BaseProvider):
                 self.server_time_delta = int(time.time()) - int(ovh_server_unix_time)
                 self.logger.info(f"OVH API: Calculated server time delta: {self.server_time_delta} seconds.")
             except Exception as e:
-                self.logger.error(f"OVH API: Failed to get server time or calculate delta: {e}. Using local time (may cause signature issues).")
+                self.logger.error(f"OVH API: Failed to get server time or calculate delta: {self.sanitize_error(e)}. Using local time (may cause signature issues).")
                 self.server_time_delta = 0 # 오류 시 델타 0 (로컬 시간 사용)
         
         # 현재 로컬 UTC 타임스탬프 - 델타 = 조정된 OVH 시간 기준 타임스탬프
@@ -285,7 +285,7 @@ class OvhProvider(BaseProvider):
                 return None, error_msg
             
         except requests.exceptions.RequestException as e:
-            return None, f"API Request Error: {e}"
+            return None, f"API Request Error: {self.sanitize_error(e)}"
         except json.JSONDecodeError as e:
             return None, f"API JSON Decode Error: {e}. Response: {response_content_str if 'response_content_str' in locals() else 'N/A'}"
 

@@ -117,18 +117,19 @@ class OpendnsProvider(BaseProvider):
                     msg = f"Update reported success ('{response_text}'), but could not extract IP from response part: '{ip_string_from_response}'"
                     self.logger.warning(msg)
                     return False, msg # IP 확인 불가 시 실패로 처리
-            # OpenDNS는 "nochg" 응답도 성공으로 간주할 수 있음 (DynDNS 표준)
-            # Go 코드에는 명시적으로 없지만, 추가 고려 가능.
-            # elif response_text.lower().startswith("nochg "):
-            #    ... (good과 유사한 IP 추출 및 비교 로직) ...
+            elif response_text.lower().startswith("nochg"):
+                # DynDNS 표준: "nochg <ip>" = IP가 이미 최신 상태 — 성공으로 처리.
+                msg = f"IP address {ip_address} for {hostname_for_query} is already up to date. API Response: '{response_text}'"
+                self.logger.info(msg)
+                return True, msg
             else:
                 # DynDNS 표준 오류 코드 (badauth, nohost 등)는 보통 HTTP 상태 코드가 200이 아님.
                 # 따라서 200인데 "good "로 시작하지 않으면 알 수 없는 응답.
                 return False, f"API Error: Unknown success response (200 OK): '{response_text}'"
 
         except requests.exceptions.RequestException as e:
-            self.logger.error(f"{self.NAME.capitalize()} API request failed: {e}")
-            return False, f"API Request Error: {e}"
+            self.logger.error(f"{self.NAME.capitalize()} API request failed: {self.sanitize_error(e)}")
+            return False, f"API Request Error: {self.sanitize_error(e)}"
 
     def _extract_ip_from_string(self, ip_string, record_type):
         """주어진 문자열에서 IP 주소를 추출합니다."""

@@ -77,7 +77,8 @@ class DuckdnsProvider(BaseProvider):
         # owner가 @가 아니면 (예: sub.yoursubdomain.duckdns.org) 레이블이 더 많아질 수 있으나,
         # DuckDNS는 단일 레벨 서브도메인만 지원하는 것으로 보임.
         # 여기서는 FQDN이 yoursubdomain.duckdns.org 형태라고 가정.
-        if self.domain.count('.') != 1 or not self.domain.split('.')[0]: # yoursubdomain 파트가 있어야 함
+        # 'yoursubdomain.duckdns.org'는 점이 2개 (yoursubdomain + duckdns + org)
+        if self.domain.count('.') != 2 or not self.domain.split('.')[0]: # yoursubdomain 파트가 있어야 함
              error_msg = f"{self.NAME.capitalize()} provider: Invalid domain format '{self.domain}'. Expected 'yoursubdomain.{self.ETLD}'."
              self.logger.error(error_msg)
              raise ValueError(error_msg)
@@ -174,8 +175,8 @@ class DuckdnsProvider(BaseProvider):
                 return False, f"API Error: Unknown response from server: '{response_text}'"
 
         except requests.exceptions.RequestException as e:
-            self.logger.error(f"{self.NAME.capitalize()} API request failed: {e}")
-            return False, f"API Request Error: {e}"
+            self.logger.error(f"{self.NAME.capitalize()} API request failed: {self.sanitize_error(e)}")
+            return False, f"API Request Error: {self.sanitize_error(e)}"
 
     def _extract_ip_from_response(self, response_text, record_type):
         """응답 텍스트에서 IP 주소를 추출합니다 (Go의 ipextract.IPv4/IPv6 참조)."""
@@ -189,7 +190,7 @@ class DuckdnsProvider(BaseProvider):
         
         ip_pattern_str = r'\b((?:[0-9]{1,3}\.){3}[0-9]{1,3})\b' # IPv4
         if record_type == "AAAA":
-            ip_pattern_str = r'\b(?:[A-F0-9]{1,4}:){2,7}(?:[A-F0-9]{1,4})\b' 
+            ip_pattern_str = r'\b((?:[A-F0-9]{1,4}:){2,7}[A-F0-9]{1,4})\b'
         
         match = re.search(ip_pattern_str, response_text, re.IGNORECASE)
         if match:

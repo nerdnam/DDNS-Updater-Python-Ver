@@ -56,9 +56,9 @@ class DnsomaticProvider(BaseProvider):
             return self.domain
         return f"{owner}.{self.domain}"
 
-    def update_record(self, ip_address, record_type="A", proxied_param=None):
-        # proxied_param은 BaseProvider 시그니처를 따르지만, DNS-O-Matic에서는 자체 proxied 로직(owner=='all') 사용.
-        if proxied_param is not None:
+    def update_record(self, ip_address, record_type="A", proxied=None):
+        # proxied는 BaseProvider 시그니처를 따르지만, DNS-O-Matic에서는 자체 proxied 로직(owner=='all') 사용.
+        if proxied is not None:
              self.logger.debug(f"{self.NAME.capitalize()} provider uses its own logic for 'all' hosts, 'proxied' argument ignored.")
 
         # DNS-O-Matic은 IPv4/IPv6 구분 없이 'myip' 파라미터를 사용.
@@ -144,8 +144,8 @@ class DnsomaticProvider(BaseProvider):
             return False, f"API Error: Unknown response from server: '{response_text}'"
 
         except requests.exceptions.RequestException as e:
-            self.logger.error(f"{self.NAME.capitalize()} API request failed: {e}")
-            return False, f"API Request Error: {e}"
+            self.logger.error(f"{self.NAME.capitalize()} API request failed: {self.sanitize_error(e)}")
+            return False, f"API Request Error: {self.sanitize_error(e)}"
 
     def _extract_ip_from_response(self, response_text, record_type):
         """응답 텍스트에서 IP 주소를 추출합니다 (Go의 ipextract.IPv4/IPv6 참조)."""
@@ -154,7 +154,7 @@ class DnsomaticProvider(BaseProvider):
         ip_pattern_str = r'\b((?:[0-9]{1,3}\.){3}[0-9]{1,3})\b' # IPv4
         if record_type == "AAAA":
             # 매우 기본적인 IPv6 패턴, 더 견고한 패턴 사용 권장
-            ip_pattern_str = r'\b(?:[A-F0-9]{1,4}:){2,7}(?:[A-F0-9]{1,4})\b' 
+            ip_pattern_str = r'\b((?:[A-F0-9]{1,4}:){2,7}[A-F0-9]{1,4})\b'
         
         match = re.search(ip_pattern_str, response_text, re.IGNORECASE)
         if match:

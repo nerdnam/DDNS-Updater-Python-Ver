@@ -115,9 +115,11 @@ class DesecProvider(BaseProvider):
                      success_message += f" API Response: '{response_text}'"
                 self.logger.info(success_message)
                 return True, success_message
-            # deSEC API는 "good <ip>" 또는 "nochg <ip>" 형태로 응답할 수도 있음.
-            # "good"만 확인하는 것은 Go 코드와 동일.
-            # 더 정확하게 하려면 응답에서 IP를 추출하여 비교하는 로직 추가 가능.
+            elif response_text.lower().startswith("nochg"):
+                # "nochg <ip>": IP가 이미 최신 상태 — 성공으로 처리.
+                success_message = f"IP address {ip_address} for {full_domain_name} is already up to date. API Response: '{response_text}'"
+                self.logger.info(success_message)
+                return True, success_message
             else:
                 # 알 수 없는 성공 또는 실패 응답
                 error_message = f"API Error: Unknown response from server: '{response_text}'"
@@ -125,5 +127,5 @@ class DesecProvider(BaseProvider):
                 return False, error_message
 
         except requests.exceptions.RequestException as e:
-            self.logger.error(f"{self.NAME.capitalize()} API request failed: {e}")
-            return False, f"API Request Error: {e}"
+            self.logger.error(f"{self.NAME.capitalize()} API request failed: {self.sanitize_error(e)}")
+            return False, f"API Request Error: {self.sanitize_error(e)}"

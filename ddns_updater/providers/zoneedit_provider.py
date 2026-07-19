@@ -140,8 +140,8 @@ class ZoneeditProvider(BaseProvider):
                 return False, f"API Error: Unknown response from server: '{response_text}'"
 
         except requests.exceptions.RequestException as e:
-            self.logger.error(f"{self.NAME.capitalize()} API request failed: {e}")
-            return False, f"API Request Error: {e}"
+            self.logger.error(f"{self.NAME.capitalize()} API request failed: {self.sanitize_error(e)}")
+            return False, f"API Request Error: {self.sanitize_error(e)}"
 
     def _extract_ip_from_zoneedit_response(self, response_text, record_type):
         """ZoneEdit 성공 응답 텍스트에서 IP 주소를 추출합니다."""

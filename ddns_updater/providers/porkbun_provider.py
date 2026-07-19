@@ -130,8 +130,11 @@ class PorkbunProvider(BaseProvider):
         
         data, error_msg = self._make_api_request(endpoint_suffix, {}) # 요청 본문에는 인증 정보만
         if error_msg:
-            self.logger.warning(f"Porkbun: Error listing records or no records found. Assuming no records. Error: {error_msg}")
-            return [], None # 오류 발생 시 또는 레코드 없을 시 빈 리스트 (호출부에서 None 체크)
+            # 인증 실패 등 API 오류를 "레코드 없음"으로 오인하면 불필요한
+            # 레코드 삭제/생성 시도로 이어지므로 오류를 그대로 전파한다.
+            # (레코드가 없을 때 Porkbun은 SUCCESS + 빈 records 배열을 반환함)
+            self.logger.error(f"Porkbun: Error listing records: {error_msg}")
+            return None, error_msg
 
         if data and 'records' in data and isinstance(data['records'], list):
             return data['records'], None 

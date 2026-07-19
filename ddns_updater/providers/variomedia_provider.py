@@ -117,12 +117,14 @@ class VariomediaProvider(BaseProvider):
                      success_message += f" API Response: '{response_text}'"
                 self.logger.info(success_message)
                 return True, success_message
-            # Go 코드에는 "nochg" 처리가 없지만, DynDNS 표준이므로 추가 고려 가능.
-            # elif response_text.lower().startswith("nochg"):
-            #    ...
+            elif response_text.lower().startswith("nochg"):
+                # DynDNS 표준: "nochg <ip>" = IP가 이미 최신 상태 — 성공으로 처리.
+                success_message = f"IP address {ip_address} for {hostname_for_query} is already up to date. API Response: '{response_text}'"
+                self.logger.info(success_message)
+                return True, success_message
             else:
                 return False, f"API Error: Unknown response from server: '{response_text}'"
 
         except requests.exceptions.RequestException as e:
-            self.logger.error(f"{self.NAME.capitalize()} API request failed: {e}")
-            return False, f"API Request Error: {e}"
+            self.logger.error(f"{self.NAME.capitalize()} API request failed: {self.sanitize_error(e)}")
+            return False, f"API Request Error: {self.sanitize_error(e)}"
